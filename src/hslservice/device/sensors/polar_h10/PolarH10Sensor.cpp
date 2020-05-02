@@ -217,11 +217,13 @@ protected:
 			return;
 
 		BLEGattCharacteristicValue *value= m_PMDCtrlPoint_Characteristic->getCharacteristicValue();
-		if (!value->readCharacteristicValue())
+
+		uint8_t *feature_buffer= nullptr;
+		size_t feature_buffer_size= 0;
+		if (!value->getData(&feature_buffer, &feature_buffer_size))
 			return;
 
-		unsigned char feature_buffer[2];
-		if (!value->getData(feature_buffer, sizeof(feature_buffer)))
+		if (feature_buffer_size == 0)
 			return;
 
 		// 0x0F = control point feature read response
@@ -264,15 +266,16 @@ protected:
         stream_settings.writeByte(0x01); // 1 = array_count(1) 
         stream_settings.writeShort(0x0008); //  2 = 2G , 4 = 4G , 8 = 8G
 
-		m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize());
-		if (!m_PMDCtrlPoint_CharacteristicValue->writeCharacteristicValue())
+		if (!m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize()))
 			return false;
 
-        if (!m_PMDCtrlPoint_CharacteristicValue->readCharacteristicValue())
-            return false;
+		uint8_t *response_buffer= nullptr;
+		size_t response_buffer_size= 0;
+		if (!m_PMDCtrlPoint_CharacteristicValue->getData(&response_buffer, &response_buffer_size))
+			return false;
 
-		uint8_t response_buffer[6];
-		m_PMDCtrlPoint_CharacteristicValue->getData(response_buffer, sizeof(response_buffer));
+		if (response_buffer_size < 4)
+			return false;
 
 		uint8_t expected_response_prefix[4]= {
 			0xF0, // control point response
@@ -296,15 +299,16 @@ protected:
         stream_settings.writeByte(0x03); // Stop Measurement
         stream_settings.writeByte(0x02); // Accelerometer Stream
 
-        m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize());
-        if (!m_PMDCtrlPoint_CharacteristicValue->writeCharacteristicValue())
+        if (!m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize()))
             return false;
 
-        if (!m_PMDCtrlPoint_CharacteristicValue->readCharacteristicValue())
-            return false;
+		uint8_t* response_buffer = nullptr;
+		size_t response_buffer_size = 0;
+		if (!m_PMDCtrlPoint_CharacteristicValue->getData(&response_buffer, &response_buffer_size))
+			return false;
 
-        uint8_t response_buffer[5];
-        m_PMDCtrlPoint_CharacteristicValue->getData(response_buffer, sizeof(response_buffer));
+		if (response_buffer_size < 4)
+			return false;
 
         uint8_t expected_response_prefix[4] = {
             0xF0, // control point response
@@ -333,15 +337,16 @@ protected:
         stream_settings.writeByte(0x01); // 1 = array_count(1) 
         stream_settings.writeShort(0x000E); // 1 = 14-bit
 
-        m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize());
-        if (!m_PMDCtrlPoint_CharacteristicValue->writeCharacteristicValue())
-            return false;
+		if (!m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize()))
+			return false;
 
-        if (!m_PMDCtrlPoint_CharacteristicValue->readCharacteristicValue())
-            return false;
+		uint8_t* response_buffer = nullptr;
+		size_t response_buffer_size = 0;
+		if (!m_PMDCtrlPoint_CharacteristicValue->getData(&response_buffer, &response_buffer_size))
+			return false;
 
-        uint8_t response_buffer[6];
-        m_PMDCtrlPoint_CharacteristicValue->getData(response_buffer, sizeof(response_buffer));
+		if (response_buffer_size < 4)
+			return false;
 
         uint8_t expected_response_prefix[4] = {
             0xF0, // control point response
@@ -365,15 +370,16 @@ protected:
         stream_settings.writeByte(0x03); // Stop Measurement
         stream_settings.writeByte(0x00); // ECG Stream
 
-        m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize());
-        if (!m_PMDCtrlPoint_CharacteristicValue->writeCharacteristicValue())
-            return false;
+		if (!m_PMDCtrlPoint_CharacteristicValue->setData(stream_settings.getBuffer(), stream_settings.getSize()))
+			return false;
 
-        if (!m_PMDCtrlPoint_CharacteristicValue->readCharacteristicValue())
-            return false;
+		uint8_t* response_buffer = nullptr;
+		size_t response_buffer_size = 0;
+		if (!m_PMDCtrlPoint_CharacteristicValue->getData(&response_buffer, &response_buffer_size))
+			return false;
 
-        uint8_t response_buffer[5];
-        m_PMDCtrlPoint_CharacteristicValue->getData(response_buffer, sizeof(response_buffer));
+		if (response_buffer_size < 4)
+			return false;
 
         uint8_t expected_response_prefix[4] = {
             0xF0, // control point response
@@ -499,7 +505,7 @@ protected:
 		return true;
     }
 
-	void OnReceivedPMDDataMTUPacket(BluetoothGattHandle attributeHandle, unsigned char *data, size_t data_size)
+	void OnReceivedPMDDataMTUPacket(BluetoothGattHandle attributeHandle, uint8_t *data, size_t data_size)
 	{
 		// Send the sensor data for processing by filter
 		if (m_sensorListener != nullptr)
@@ -602,7 +608,7 @@ protected:
 		}
 	}
 
-	void OnReceivedHRDataPacket(BluetoothGattHandle attributeHandle, unsigned char* data, size_t data_size)
+	void OnReceivedHRDataPacket(BluetoothGattHandle attributeHandle, uint8_t* data, size_t data_size)
 	{
         StackBuffer<64> packet_data(data, data_size);
 
@@ -714,6 +720,18 @@ protected:
 
 // -- public methods
 
+// -- PolarH10BluetoothLEDetails
+void PolarH10BluetoothLEDetails::reset()
+{
+	friendlyName= "";
+	devicePath= "";
+	deviceHandle= k_invalid_ble_device_handle;
+	gattProfile= nullptr;
+	bluetoothAddress= "";
+	memset(&deviceInfo, 0, sizeof(HSLDeviceInformation));
+	bodyLocation= "";
+}
+
 // -- PSMove Controller Config
 // Bump this version when you are making a breaking config change.
 // Simply adding or removing a field is ok and doesn't require a version bump.
@@ -804,9 +822,8 @@ IDeviceInterface *PolarH10Sensor::PolarH10SensorFactory()
 PolarH10Sensor::PolarH10Sensor()
     : m_packetProcessor(nullptr)
 	, m_sensorListener(nullptr)
-{
-    m_bluetoothLEDetails.deviceHandle = k_invalid_ble_device_handle;
-	//memset(&m_cachedInputState, 0, sizeof(PolarH10SensorState));
+{	
+    m_bluetoothLEDetails.reset();
 }
 
 PolarH10Sensor::~PolarH10Sensor()
@@ -878,19 +895,19 @@ bool PolarH10Sensor::open(
 				szBluetoothAddress, sizeof(szBluetoothAddress)))
 		{
 			m_bluetoothLEDetails.bluetoothAddress= szBluetoothAddress;
-			HSL_LOG_INFO("PolarH10Sensor::open") << "  Valid Bluetooth Address: " << szBluetoothAddress;
-
-			// Load the config file (if it exists yet)
-			std::string config_suffix = m_bluetoothLEDetails.bluetoothAddress;
-			std::replace(config_suffix.begin(), config_suffix.end(), ':', '_');
-			m_config = PolarH10SensorConfig(config_suffix);
-			m_config.load();
 		}
 		else
 		{
 			HSL_LOG_WARNING("PolarH10Sensor::open") << "  EMPTY Bluetooth Address!";
 			bSuccess= false;
 		}
+
+		// Load the config file (if it exists yet)
+		std::string config_suffix = m_bluetoothLEDetails.friendlyName;
+		config_suffix.erase(std::remove(config_suffix.begin(), config_suffix.end(), ' '), config_suffix.end());
+		m_config = PolarH10SensorConfig(config_suffix);
+		m_config.load();
+
 
 		if (!fetchDeviceInformation())
 		{
@@ -934,11 +951,8 @@ bool PolarH10Sensor::fetchBodySensorLocation()
     if (bodySensorLocation_Characteristic == nullptr)
         return false;
 
-	BLEGattCharacteristicValue *value= bodySensorLocation_Characteristic->getCharacteristicValue();
-	if (!value->readCharacteristicValue())
-		return false;
-
 	uint8_t location_enum= 0;
+	BLEGattCharacteristicValue* value = bodySensorLocation_Characteristic->getCharacteristicValue();
 	if (!value->getByte(location_enum))
 		return false;
 
@@ -978,16 +992,21 @@ static void fetchDeviceInfoString(
 	size_t max_string_length,
 	char *out_string)
 {
-    BLEGattCharacteristic* bodySensorLocation_Characteristic = 
-		deviceInfo_Service->findCharacteristic(*k_Characteristic_BodySensorLocation_UUID);
-    if (bodySensorLocation_Characteristic == nullptr)
+    BLEGattCharacteristic* deviceInfo_Characteristic = deviceInfo_Service->findCharacteristic(*characteristicUUID);
+    if (deviceInfo_Characteristic == nullptr)
         return;
 
-	BLEGattCharacteristicValue *value= bodySensorLocation_Characteristic->getCharacteristicValue();
-	if (!value->readCharacteristicValue())
-		return;
+	BLEGattCharacteristicValue *value= deviceInfo_Characteristic->getCharacteristicValue();
 
-	value->getData((uint8_t *)out_string, max_string_length);
+	uint8_t *result_buffer= nullptr;
+	size_t result_buffer_size = 0;
+	if (value->getData(&result_buffer, &result_buffer_size))
+	{
+		size_t copy_size= std::min(result_buffer_size, max_string_length);
+
+		memcpy(out_string, result_buffer, copy_size);
+		out_string[max_string_length-1]= '\0';
+	}
 }
 
 bool PolarH10Sensor::fetchDeviceInformation()

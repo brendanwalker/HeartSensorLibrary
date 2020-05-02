@@ -30,6 +30,7 @@ public:
 
 	DeviceManagerConfig(const std::string &fnamebase = "DeviceManagerConfig")
 		: HSLConfig(fnamebase)
+		, version(DeviceManagerConfig::CONFIG_VERSION)
 		, sensor_reconnect_interval(k_default_sensor_reconnect_interval)
 		, sensor_poll_interval(k_default_sensor_poll_interval)
 		, platform_api_enabled(true)
@@ -38,7 +39,7 @@ public:
 	const configuru::Config writeToJSON()
 	{
 		configuru::Config pt{
-				{"version", DeviceManagerConfig::CONFIG_VERSION+0},
+				{"version", DeviceManagerConfig::CONFIG_VERSION},
 				{"sensor_reconnect_interval", sensor_reconnect_interval},
 				{"sensor_poll_interval", sensor_poll_interval},
 				{"platform_api_enabled", platform_api_enabled}
@@ -191,11 +192,14 @@ void DeviceManager::registerDeviceFactory(
 DeviceManager::DeviceFactoryFunction DeviceManager::getFactoryFunction(
 	const std::string &deviceFriendlyName) const
 {
-	const auto it= m_deviceFactoryTable.find(deviceFriendlyName);
-
-	if (it != m_deviceFactoryTable.end())
+	for (auto it = m_deviceFactoryTable.begin(); it != m_deviceFactoryTable.end(); ++it)
 	{
-		return it->second;
+		const std::string &prefix= it->first;
+
+		if (deviceFriendlyName.find_first_of(prefix) == 0)
+		{
+			return it->second;
+		}		
 	}
 
 	return DeviceFactoryFunction();

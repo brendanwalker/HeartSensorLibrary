@@ -108,15 +108,18 @@ bool SensorBluetoothLEDeviceEnumerator::testBLEEnumerator()
 
 		if (service_ids.containsUUID(*k_Service_HeartRate_UUID))
 		{
+			char BLEFriendlyName[256];
             char BLEPath[256];
             char BLEIdentifier[256];
 
+			bluetoothle_device_enumerator_get_friendly_name(m_ble_enumerator, BLEFriendlyName, sizeof(BLEFriendlyName));
             bluetoothle_device_enumerator_get_path(m_ble_enumerator, BLEPath, sizeof(BLEPath));
             bluetoothle_device_enumerator_get_unique_id(m_ble_enumerator, BLEIdentifier, sizeof(BLEIdentifier));
 
             // Remember the last BluetoothLE device path
             m_currentBLEPath= BLEPath;
             m_currentBLEIdentifier= BLEIdentifier;
+			m_currentFriendlyName= BLEFriendlyName;
 
             m_currentDriverType = bluetoothle_device_enumerator_get_driver_type(m_ble_enumerator);
 

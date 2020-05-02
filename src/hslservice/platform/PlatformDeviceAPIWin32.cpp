@@ -433,15 +433,15 @@ LRESULT message_handler(HWND__* hwnd, UINT msg_type, WPARAM wparam, LPARAM lpara
 						const BTH_HCI_EVENT_INFO *eventInfo= (BTH_HCI_EVENT_INFO *)lpdbv->dbch_data;
 						std::string address= bluetooth_address_to_string(&eventInfo->bthAddress);
 
-						if (eventInfo->connectionType == HCI_CONNECTION_TYPE_ACL)
+						if (eventInfo->connectionType == HCI_CONNECTION_TYPE_LE)
 						{
 							if (eventInfo->connected)
 							{
-								g_hotplug_broadcaster->handle_device_connected(DeviceClass::DeviceClass_HID, address);
+								g_hotplug_broadcaster->handle_device_connected(DeviceClass::DeviceClass_BLE, address);
 							}
 							else
 							{
-								g_hotplug_broadcaster->handle_device_disconnected(DeviceClass::DeviceClass_HID, address);
+								g_hotplug_broadcaster->handle_device_disconnected(DeviceClass::DeviceClass_BLE, address);
 							}
 						}
 					}

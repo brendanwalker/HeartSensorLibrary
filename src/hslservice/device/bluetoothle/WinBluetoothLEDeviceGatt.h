@@ -57,9 +57,6 @@ public:
 	bool fetchDescriptors();
 	void freeDescriptors();
 
-	bool fetchCharacteristicValue();
-	void freeCharacteristicValue();
-
 	HANDLE getDeviceHandle() const;
 	BTH_LE_GATT_CHARACTERISTIC *getCharacteristicWinAPI();
 
@@ -79,7 +76,6 @@ protected:
 	static void gattEventCallback(BTH_LE_GATT_EVENT_TYPE EventType, PVOID EventOutParameter, PVOID Context);
 
 	BTH_LE_GATT_CHARACTERISTIC *characteristicWinAPI;
-	BTH_LE_GATT_CHARACTERISTIC_VALUE *characteristicValueBufferWinAPI;
 	BTH_LE_GATT_DESCRIPTOR *descriptorBufferWinAPI;
 
 	struct ChangeCallbackContext
@@ -94,23 +90,24 @@ protected:
 class WinBLEGattCharacteristicValue : public BLEGattCharacteristicValue
 {
 public:
-	WinBLEGattCharacteristicValue(BLEGattCharacteristic *characteristic, BTH_LE_GATT_CHARACTERISTIC_VALUE *characteristicValue);
+	WinBLEGattCharacteristicValue(BLEGattCharacteristic *characteristic);
 	WinBLEGattCharacteristic* getParentCharacteristic() const;
 
 	HANDLE getDeviceHandle() const;
 	BTH_LE_GATT_CHARACTERISTIC *getCharacteristicWinAPI() const;
-
-	virtual bool readCharacteristicValue();
-	virtual bool writeCharacteristicValue();
-
-	virtual bool getByte(unsigned char &outValue);
-	virtual bool getData(unsigned char *outBuffer, size_t outBufferSize);
-	virtual bool setByte(unsigned char inValue);
-	virtual bool setData(const unsigned char *inBuffer, size_t inBufferSize);
+	
+	virtual bool getByte(uint8_t &outValue);
+	virtual bool getData(uint8_t **outBuffer, size_t *outBufferSize);
+	virtual bool setByte(uint8_t inValue);
+	virtual bool setData(const uint8_t *inBuffer, size_t inBufferSize);
 
 protected:
-	BTH_LE_GATT_DESCRIPTOR *descriptorWinAPI;
+	static size_t getTailBufferSize(size_t characteristic_value_size);
+	static size_t getCharacteristicValueSize(size_t tail_buffer_size);
+	void ensureTailBufferSize(size_t tail_buffer_size);
+
 	BTH_LE_GATT_CHARACTERISTIC_VALUE *characteristicValueBufferWinAPI;
+	size_t maxTailBufferSize;
 };
 
 class WinBLEGattDescriptor : public BLEGattDescriptor
@@ -121,12 +118,8 @@ public:
 	HANDLE getDeviceHandle() const;
 	BTH_LE_GATT_DESCRIPTOR *getDescriptorWinAPI();
 
-	bool fetchDescriptorValue();
-	void freeDescriptorValue();
-
 protected:
 	BTH_LE_GATT_DESCRIPTOR *descriptorWinAPI;
-	BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValueBufferWinAPI;
 };
 
 class WinBLEGattDescriptorValue : public BLEGattDescriptorValue
@@ -145,18 +138,23 @@ public:
 	virtual bool getClientCharacteristicConfiguration(BLEGattDescriptorValue::ClientCharacteristicConfiguration &outConfig) const;
 	virtual bool getServerCharacteristicConfiguration(BLEGattDescriptorValue::ServerCharacteristicConfiguration &outConfig) const;
 	virtual bool getCharacteristicFormat(BLEGattDescriptorValue::CharacteristicFormat &outFormat) const;
-	virtual bool setCharacteristicExtendedProperties(const BLEGattDescriptorValue::CharacteristicExtendedProperties &inProps) const;
-	virtual bool setClientCharacteristicConfiguration(const BLEGattDescriptorValue::ClientCharacteristicConfiguration &inConfig) const;
-	virtual bool setServerCharacteristicConfiguration(const BLEGattDescriptorValue::ServerCharacteristicConfiguration &inConfig) const;
-	virtual bool setCharacteristicFormat(const BLEGattDescriptorValue::CharacteristicFormat &inFormat) const;
+	virtual bool setCharacteristicExtendedProperties(const BLEGattDescriptorValue::CharacteristicExtendedProperties &inProps);
+	virtual bool setClientCharacteristicConfiguration(const BLEGattDescriptorValue::ClientCharacteristicConfiguration &inConfig);
+	virtual bool setServerCharacteristicConfiguration(const BLEGattDescriptorValue::ServerCharacteristicConfiguration &inConfig);
+	virtual bool setCharacteristicFormat(const BLEGattDescriptorValue::CharacteristicFormat &inFormat);
 
-	virtual bool getByte(unsigned char &outValue);
-	virtual bool getData(unsigned char *outBuffer, size_t outBufferSize);
-	virtual bool setByte(unsigned char inValue);
-	virtual bool setData(const unsigned char *inBuffer, size_t inBufferSize);
+	virtual bool getByte(uint8_t &outValue) const;
+	virtual bool getData(uint8_t **outBuffer, size_t *outBufferSize) const;
+	virtual bool setByte(uint8_t inValue);
+	virtual bool setData(const uint8_t *inBuffer, size_t inBufferSize);
 
 protected:
+	static size_t getTailBufferSize(size_t descriptor_value_size);
+	static size_t getDescriptorValueSize(size_t tail_buffer_size);
+	void ensureTailBufferSize(size_t tail_buffer_size);
+
 	BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValueWinAPI;
+	size_t maxTailBufferSize;
 };
 
 #endif // WIN_BLUETOOTH_LE_DEVICE_GATT_API_H

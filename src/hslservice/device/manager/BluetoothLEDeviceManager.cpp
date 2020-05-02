@@ -26,6 +26,7 @@ const int BluetoothLEManagerConfig::CONFIG_VERSION = 1;
 
 BluetoothLEManagerConfig::BluetoothLEManagerConfig(const std::string &fnamebase)
 	: HSLConfig(fnamebase)
+	, version(CONFIG_VERSION)
 {
 };
 
@@ -300,6 +301,11 @@ void bluetoothle_device_enumerator_next(class BluetoothLEDeviceEnumerator* enume
 void bluetoothle_device_enumerator_free(class BluetoothLEDeviceEnumerator* enumerator)
 {
 	BluetoothLEDeviceManager::getBLEApiInterface(enumerator->api_type)->deviceEnumeratorDispose(enumerator);
+}
+
+bool bluetoothle_device_enumerator_get_friendly_name(const class BluetoothLEDeviceEnumerator* enumerator, char* outBuffer, size_t bufferSize)
+{
+	return BluetoothLEDeviceManager::getBLEApiInterface(enumerator->api_type)->deviceEnumeratorGetFriendlyName(enumerator, outBuffer, bufferSize);
 }
 
 bool bluetoothle_device_enumerator_get_path(const class BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize)

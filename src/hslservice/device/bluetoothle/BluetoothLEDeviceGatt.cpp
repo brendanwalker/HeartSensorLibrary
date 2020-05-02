@@ -58,7 +58,9 @@ BLEGattCharacteristic *BLEGattService::findCharacteristic(const BluetoothUUID& u
 BLEGattCharacteristic::BLEGattCharacteristic(BLEGattService *service, const BluetoothUUID &uuid)
 	: parentService(service)
 	, characteristicUuid(uuid)
+	, characteristicValue(nullptr)
 {
+
 }
 
 BLEGattCharacteristic::~BLEGattCharacteristic()
@@ -100,6 +102,7 @@ BLEGattCharacteristicValue::~BLEGattCharacteristicValue()
 BLEGattDescriptor::BLEGattDescriptor(BLEGattCharacteristic *characteristic, const BluetoothUUID &uuid)
 	: parentCharacteristic(characteristic)
 	, descriptorUuid(uuid)
+	, descriptorValue(nullptr)
 {
 }
 

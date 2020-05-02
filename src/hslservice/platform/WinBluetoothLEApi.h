@@ -47,6 +47,7 @@ public:
 
 	BluetoothLEDeviceEnumerator* deviceEnumeratorCreate() override;
 	bool deviceEnumeratorGetServiceIDs(const BluetoothLEDeviceEnumerator* enumerator, class BluetoothUUIDSet *out_service_ids) const override;
+	bool deviceEnumeratorGetFriendlyName(const BluetoothLEDeviceEnumerator* enumerator, char* outBuffer, size_t bufferSize) const;
 	bool deviceEnumeratorGetPath(const BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize) const override;
 	bool deviceEnumeratorGetUniqueIdentifier(const BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize) const override;
 	bool deviceEnumeratorIsValid(const BluetoothLEDeviceEnumerator* enumerator) override;

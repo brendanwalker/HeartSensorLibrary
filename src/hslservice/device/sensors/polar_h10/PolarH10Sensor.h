@@ -22,6 +22,8 @@ struct PolarH10BluetoothLEDetails
     std::string bluetoothAddress;      // The bluetooth address of the sensor
 	HSLDeviceInformation deviceInfo;
 	std::string bodyLocation;
+
+	void reset();
 };
 
 class PolarH10SensorConfig : public HSLConfig

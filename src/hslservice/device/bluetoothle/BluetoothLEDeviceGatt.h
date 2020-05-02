@@ -73,7 +73,7 @@ protected:
 class BLEGattCharacteristic
 {
 public:
-	using ChangeCallback = std::function<void(BluetoothGattHandle attributrHandle, unsigned char *data, size_t data_size)>;
+	using ChangeCallback = std::function<void(BluetoothGattHandle attributrHandle, uint8_t *data, size_t data_size)>;
 
 	BLEGattCharacteristic(BLEGattService *service, const BluetoothUUID &uuid);
 	virtual ~BLEGattCharacteristic();
@@ -110,14 +110,11 @@ public:
 	BLEGattCharacteristicValue(BLEGattCharacteristic *characteristic);
 	virtual ~BLEGattCharacteristicValue();
 
-	virtual bool readCharacteristicValue() = 0;
-	virtual bool writeCharacteristicValue() = 0;
+	virtual bool getByte(uint8_t &outValue) = 0;
+	virtual bool getData(uint8_t **outBuffer, size_t *outBufferSize) = 0;
 
-	virtual bool getByte(unsigned char &outValue) = 0;
-	virtual bool getData(unsigned char *outBuffer, size_t outBufferSize) = 0;
-
-	virtual bool setByte(unsigned char inValue) = 0;
-	virtual bool setData(const unsigned char *inBuffer, size_t inBufferSize) = 0;
+	virtual bool setByte(uint8_t inValue) = 0;
+	virtual bool setData(const uint8_t *inBuffer, size_t inBufferSize) = 0;
 
 protected:
 	BLEGattCharacteristic *parentCharacteristic;
@@ -126,7 +123,7 @@ protected:
 class BLEGattDescriptor
 {
 public:
-	enum class DescriptorType : unsigned char
+	enum class DescriptorType : uint8_t
 	{
 		CharacteristicExtendedProperties,
 		CharacteristicUserDescription,
@@ -175,10 +172,10 @@ public:
 
 	struct CharacteristicFormat
 	{
-		unsigned char Format;
-		unsigned char Exponent;
+		uint8_t Format;
+		uint8_t Exponent;
 		BluetoothUUID Unit;
-		unsigned char NameSpace;
+		uint8_t NameSpace;
 		BluetoothUUID Description;
 	};
 
@@ -196,16 +193,16 @@ public:
 	virtual bool getServerCharacteristicConfiguration(ServerCharacteristicConfiguration &outConfig) const = 0;
 	virtual bool getCharacteristicFormat(CharacteristicFormat &outFormat) const = 0;
 
-	virtual bool setCharacteristicExtendedProperties(const CharacteristicExtendedProperties &inProps) const = 0;
-	virtual bool setClientCharacteristicConfiguration(const ClientCharacteristicConfiguration &inConfig) const = 0;
-	virtual bool setServerCharacteristicConfiguration(const ServerCharacteristicConfiguration &inConfig) const = 0;
-	virtual bool setCharacteristicFormat(const CharacteristicFormat &inFormat) const = 0;
+	virtual bool setCharacteristicExtendedProperties(const CharacteristicExtendedProperties &inProps) = 0;
+	virtual bool setClientCharacteristicConfiguration(const ClientCharacteristicConfiguration &inConfig) = 0;
+	virtual bool setServerCharacteristicConfiguration(const ServerCharacteristicConfiguration &inConfig) = 0;
+	virtual bool setCharacteristicFormat(const CharacteristicFormat &inFormat) = 0;
 
-	virtual bool getByte(unsigned char &outValue) = 0;
-	virtual bool getData(unsigned char *outBuffer, size_t outBufferSize) = 0;
+	virtual bool getByte(uint8_t &outValue) const = 0;
+	virtual bool getData(uint8_t **outBuffer, size_t *outBufferSize) const = 0;
 
-	virtual bool setByte(unsigned char inValue) = 0;
-	virtual bool setData(const unsigned char *inBuffer, size_t inBufferSize) = 0;
+	virtual bool setByte(uint8_t inValue) = 0;
+	virtual bool setData(const uint8_t *inBuffer, size_t inBufferSize) = 0;
 
 protected:
 	BLEGattDescriptor *parentDescriptor;

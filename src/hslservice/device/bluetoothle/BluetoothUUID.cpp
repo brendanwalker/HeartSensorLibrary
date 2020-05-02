@@ -30,11 +30,12 @@ void BluetoothUUID::setUUID(const std::string& in_uuid)
 
 	// Strip off "0x" prefix
 	std::string uuid = in_uuid;
-	if (uuid.size() < 11 && uuid.find_first_of("0x") != std::string::npos) {
+	if (uuid.size() >= 2 && uuid[0] == '0' && uuid[1] == 'x')
+	{
 		uuid = uuid.substr(2);
 	}
 
-	if (!(uuid.size() == 4 || uuid.size() == 8 || uuid.size() == 36))
+	if (uuid.size() != 4 && uuid.size() != 8 && uuid.size() != 36)
 	{
 		return;
 	}

@@ -76,6 +76,7 @@ public:
 
 	virtual BluetoothLEDeviceEnumerator* deviceEnumeratorCreate() = 0;
 	virtual bool deviceEnumeratorGetServiceIDs(const BluetoothLEDeviceEnumerator* enumerator, class BluetoothUUIDSet *out_service_ids) const = 0;
+	virtual bool deviceEnumeratorGetFriendlyName(const BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize) const = 0;
 	virtual bool deviceEnumeratorGetPath(const BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize) const = 0;
 	virtual bool deviceEnumeratorGetUniqueIdentifier(const BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize) const = 0;
 	virtual bool deviceEnumeratorIsValid(const BluetoothLEDeviceEnumerator* enumerator) = 0;

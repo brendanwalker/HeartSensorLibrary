@@ -25,6 +25,18 @@
 #define HSL_BITMASK_SET_FLAG(bitmask, flag) ((bitmask) |= (1 << (flag)))
 #define HSL_BITMASK_CLEAR_FLAG(bitmask, flag) ((bitmask) &= (~(1) << (flag)))
 
+// Defines a standard _PAUSE function
+#if __cplusplus >= 199711L  // if C++11
+#include <thread>
+#define HSL_SLEEP(ms) (std::this_thread::sleep_for(std::chrono::milliseconds(ms)))
+#elif defined(_WIN32)       // if windows system
+#include <windows.h>
+#define HSL_SLEEP(ms) (Sleep(ms))
+#else                       // assume this is Unix system
+#include <unistd.h>
+#define HSL_SLEEP(ms) (usleep(1000 * ms))
+#endif
+
 // Shared Constants
 //-----------------
 

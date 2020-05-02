@@ -48,6 +48,7 @@ HSLClient::HSLClient()
 	, m_bHasSensorListChanged(false)
 {
 	m_clientSensors = new HSLClentSensorState[HSLSERVICE_MAX_SENSOR_COUNT];
+	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
 }
 
 HSLClient::~HSLClient()

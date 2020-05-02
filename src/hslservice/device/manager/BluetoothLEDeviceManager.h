@@ -70,6 +70,7 @@ bool bluetoothle_device_enumerator_is_valid(const class BluetoothLEDeviceEnumera
 bool bluetoothle_device_enumerator_get_service_ids(const class BluetoothLEDeviceEnumerator* enumerator, BluetoothUUIDSet &outDeviceInfo);
 void bluetoothle_device_enumerator_next(class BluetoothLEDeviceEnumerator* enumerator);
 void bluetoothle_device_enumerator_free(class BluetoothLEDeviceEnumerator* enumerator);
+bool bluetoothle_device_enumerator_get_friendly_name(const class BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize);
 bool bluetoothle_device_enumerator_get_path(const class BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize);
 bool bluetoothle_device_enumerator_get_unique_id(const class BluetoothLEDeviceEnumerator* enumerator, char *outBuffer, size_t bufferSize);
 eBluetoothLEApiType bluetoothle_device_enumerator_get_driver_type(const class BluetoothLEDeviceEnumerator* enumerator);

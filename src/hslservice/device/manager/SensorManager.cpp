@@ -14,6 +14,7 @@ const int SensorManagerConfig::CONFIG_VERSION = 1;
 
 SensorManagerConfig::SensorManagerConfig(const std::string &fnamebase)
 	: HSLConfig(fnamebase)
+	, version(SensorManagerConfig::CONFIG_VERSION)
 {
 
 };
