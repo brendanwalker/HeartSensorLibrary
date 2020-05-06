@@ -23,7 +23,18 @@ ServerSensorView::ServerSensorView(const int device_id)
 	, m_device(nullptr)
 	, m_sensorPacketQueue(1000)
 	, m_activeFilterBitmask(0)
+	, m_bIsLastSensorDataTimestampValid(false)
+	, m_bIsLastFilterUpdateTimestampValid(false)
+	, heartRateBuffer(nullptr)
+	, heartECGBuffer(nullptr)
+	, heartPPGBuffer(nullptr)
+	, heartPPIBuffer(nullptr)
+	, heartAccBuffer(nullptr)
 {
+	for (int hrv_filter_index = 0; hrv_filter_index < HRVFilter_COUNT; ++hrv_filter_index)
+	{
+		hrvFilters[hrv_filter_index].hrvBuffer= nullptr;
+	}
 }
 
 ServerSensorView::~ServerSensorView()
