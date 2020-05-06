@@ -115,6 +115,7 @@ void WinBluetoothUUID::ToWinAPI(BTH_LE_UUID &win_uuid)
 //-- WinBLEDeviceState -----
 WinBLEGattProfile::WinBLEGattProfile(WinBLEDeviceState *device)
 	: BLEGattProfile(device)
+	, m_deviceHandle(device->getDeviceHandle())
 	, serviceBufferWinAPI(nullptr)
 {
 }
@@ -134,7 +135,7 @@ bool WinBLEGattProfile::fetchServices()
 	if (bSuccess)
 	{
 		HRESULT hr = BluetoothGATTGetServices(
-			getDeviceHandle(),
+			m_deviceHandle,
 			0,
 			NULL,
 			&serviceBufferRequiredCount,
@@ -156,7 +157,7 @@ bool WinBLEGattProfile::fetchServices()
 
 		USHORT servicesBufferActualCount = serviceBufferRequiredCount;
 		HRESULT hr = BluetoothGATTGetServices(
-			getDeviceHandle(),
+			m_deviceHandle,
 			servicesBufferActualCount,
 			serviceBufferWinAPI,
 			&serviceBufferRequiredCount,
@@ -212,17 +213,16 @@ void WinBLEGattProfile::freeServices()
 	}
 }
 
-HANDLE WinBLEGattProfile::getDeviceHandle() const
-{
-	return static_cast<WinBLEDeviceState *>(parentDevice)->getDeviceHandle();
-}
-
 //-- WinBLEGattService -----
 WinBLEGattService::WinBLEGattService(WinBLEGattProfile *profile, const BluetoothUUID &uuid, BTH_LE_GATT_SERVICE *service)
 	: BLEGattService(profile, uuid)
+	, m_serviceDeviceHandle(nullptr)
 	, serviceWinAPI(service)
 	, characteristicBufferWinAPI(nullptr)
 {
+	WinBLEDeviceState *deviceState= static_cast<WinBLEDeviceState *>(profile->getParentDevice());
+
+	m_serviceDeviceHandle= deviceState->getServiceDeviceHandle(uuid);
 }
 
 WinBLEGattService::~WinBLEGattService()
@@ -240,7 +240,7 @@ bool WinBLEGattService::fetchCharacteristics()
 	if (bSuccess)
 	{
 		HRESULT hr = BluetoothGATTGetCharacteristics(
-			getDeviceHandle(),
+			m_serviceDeviceHandle,
 			serviceWinAPI,
 			0,
 			NULL,
@@ -264,7 +264,7 @@ bool WinBLEGattService::fetchCharacteristics()
 
 		USHORT characteristicsBufferActualCount = characteristicsBufferRequiredCount;
 		HRESULT hr = BluetoothGATTGetCharacteristics(
-			getDeviceHandle(),
+			m_serviceDeviceHandle,
 			serviceWinAPI,
 			characteristicsBufferActualCount,
 			characteristicBufferWinAPI,
@@ -321,11 +321,6 @@ void WinBLEGattService::freeCharacteristics()
 	}
 }
 
-HANDLE WinBLEGattService::getDeviceHandle() const
-{
-	return static_cast<WinBLEGattProfile *>(parentProfile)->getDeviceHandle();
-}
-
 //-- WinBLEGattCharacteristic -----
 WinBLEGattCharacteristic::WinBLEGattCharacteristic(BLEGattService *service, const BluetoothUUID &uuid, BTH_LE_GATT_CHARACTERISTIC *characteristic)
 	: BLEGattCharacteristic(service, uuid)
@@ -338,6 +333,7 @@ WinBLEGattCharacteristic::WinBLEGattCharacteristic(BLEGattService *service, cons
 WinBLEGattCharacteristic::~WinBLEGattCharacteristic()
 {
 	delete characteristicValue;
+	characteristicValue= nullptr;
 
 	freeDescriptors();
 
@@ -360,7 +356,7 @@ bool WinBLEGattCharacteristic::fetchDescriptors()
 	if (bSuccess)
 	{
 		HRESULT hr = BluetoothGATTGetDescriptors(
-			getDeviceHandle(),
+			getServiceDeviceHandle(),
 			characteristicWinAPI,
 			0,
 			NULL,
@@ -384,7 +380,7 @@ bool WinBLEGattCharacteristic::fetchDescriptors()
 
 		USHORT descriptorBufferActualCount = descriptorBufferRequiredCount;
 		HRESULT hr = BluetoothGATTGetDescriptors(
-			getDeviceHandle(),
+			getServiceDeviceHandle(),
 			characteristicWinAPI,
 			descriptorBufferActualCount,
 			descriptorBufferWinAPI,
@@ -426,9 +422,9 @@ void WinBLEGattCharacteristic::freeDescriptors()
 	}
 }
 
-HANDLE WinBLEGattCharacteristic::getDeviceHandle() const
+HANDLE WinBLEGattCharacteristic::getServiceDeviceHandle() const
 {
-	return static_cast<WinBLEGattService *>(parentService)->getDeviceHandle();
+	return static_cast<WinBLEGattService *>(parentService)->getServiceDeviceHandle();
 }
 
 BTH_LE_GATT_CHARACTERISTIC *WinBLEGattCharacteristic::getCharacteristicWinAPI()
@@ -492,7 +488,7 @@ BluetoothEventHandle WinBLEGattCharacteristic::registerChangeEvent(
 
 		BLUETOOTH_GATT_EVENT_HANDLE eventHandle;
 		HRESULT hr = BluetoothGATTRegisterEvent(
-			getDeviceHandle(),
+			getServiceDeviceHandle(),
 			CharacteristicValueChangedEvent,
 			&eventParameterIn,
 			WinBLEGattCharacteristic::gattEventCallback,
@@ -565,9 +561,9 @@ WinBLEGattCharacteristic* WinBLEGattCharacteristicValue::getParentCharacteristic
 	return static_cast<WinBLEGattCharacteristic *>(parentCharacteristic);
 }
 
-HANDLE WinBLEGattCharacteristicValue::getDeviceHandle() const
+HANDLE WinBLEGattCharacteristicValue::getServiceDeviceHandle() const
 {
-	return getParentCharacteristic()->getDeviceHandle();
+	return getParentCharacteristic()->getServiceDeviceHandle();
 }
 
 BTH_LE_GATT_CHARACTERISTIC *WinBLEGattCharacteristicValue::getCharacteristicWinAPI() const
@@ -599,7 +595,7 @@ bool WinBLEGattCharacteristicValue::getData(uint8_t **outBuffer, size_t *outBuff
 	// Determine Descriptor Value Buffer Size
 	USHORT newCharacteristicValueRequiredSize = 0;
 	HRESULT hr = BluetoothGATTGetCharacteristicValue(
-		getDeviceHandle(),
+		getServiceDeviceHandle(),
 		getParentCharacteristic()->getCharacteristicWinAPI(),
 		0,
 		NULL,
@@ -617,7 +613,7 @@ bool WinBLEGattCharacteristicValue::getData(uint8_t **outBuffer, size_t *outBuff
 
 		// Actually read the characteristic value
 		hr = BluetoothGATTGetCharacteristicValue(
-			getDeviceHandle(),
+			getServiceDeviceHandle(),
 			getCharacteristicWinAPI(),
 			newCharacteristicValueRequiredSize,
 			characteristicValueBufferWinAPI,
@@ -666,7 +662,7 @@ bool WinBLEGattCharacteristicValue::setData(const uint8_t *inBuffer, size_t inBu
 
 	// Set the new characteristic value
 	HRESULT hr = BluetoothGATTSetCharacteristicValue(
-		getDeviceHandle(),
+		getServiceDeviceHandle(),
 		getCharacteristicWinAPI(),
 		characteristicValueBufferWinAPI,
 		NULL,
@@ -740,9 +736,9 @@ WinBLEGattDescriptor::WinBLEGattDescriptor(BLEGattCharacteristic *characteristic
 	attributeHandle = BluetoothGattHandle((unsigned short)descriptor->AttributeHandle);
 }
 
-HANDLE WinBLEGattDescriptor::getDeviceHandle() const
+HANDLE WinBLEGattDescriptor::getServiceDeviceHandle() const
 {
-	return static_cast<WinBLEGattCharacteristic *>(parentCharacteristic)->getDeviceHandle();
+	return static_cast<WinBLEGattCharacteristic *>(parentCharacteristic)->getServiceDeviceHandle();
 }
 
 BTH_LE_GATT_DESCRIPTOR *WinBLEGattDescriptor::getDescriptorWinAPI()
@@ -761,9 +757,9 @@ WinBLEGattDescriptor* WinBLEGattDescriptorValue::getParentDescriptor() const
 	return static_cast<WinBLEGattDescriptor *>(parentDescriptor);
 }
 
-HANDLE WinBLEGattDescriptorValue::getDeviceHandle() const
+HANDLE WinBLEGattDescriptorValue::getServiceDeviceHandle() const
 {
-	return getParentDescriptor()->getDeviceHandle();
+	return getParentDescriptor()->getServiceDeviceHandle();
 }
 
 BTH_LE_GATT_DESCRIPTOR *WinBLEGattDescriptorValue::getDescriptorWinAPI() const
@@ -776,7 +772,7 @@ bool WinBLEGattDescriptorValue::readDescriptorValue()
 	// Determine Descriptor Value Buffer Size
 	USHORT newDescriptorValueRequiredSize = 0;
 	HRESULT hr = BluetoothGATTGetDescriptorValue(
-		getDeviceHandle(),
+		getServiceDeviceHandle(),
 		getDescriptorWinAPI(),
 		0,
 		NULL,
@@ -806,7 +802,7 @@ bool WinBLEGattDescriptorValue::readDescriptorValue()
 
 	// Actually read the characteristic value
 	hr = BluetoothGATTGetDescriptorValue(
-		getDeviceHandle(),
+		getServiceDeviceHandle(),
 		getDescriptorWinAPI(),
 		newDescriptorValueRequiredSize,
 		descriptorValueWinAPI,
@@ -819,7 +815,7 @@ bool WinBLEGattDescriptorValue::readDescriptorValue()
 bool WinBLEGattDescriptorValue::writeDescriptorValue()
 {
 	HRESULT hr = BluetoothGATTSetDescriptorValue(
-		getDeviceHandle(),
+		getServiceDeviceHandle(),
 		getDescriptorWinAPI(),
 		descriptorValueWinAPI,
 		BLUETOOTH_GATT_FLAG_NONE);

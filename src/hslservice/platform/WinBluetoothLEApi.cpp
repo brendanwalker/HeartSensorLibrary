@@ -32,9 +32,8 @@
 #endif
 
 #include "WinBluetoothLEDeviceGatt.h"
+#include "WinDeviceUtils.h"
 
-//-- private methods -----
-static std::string GetLastErrorAsString();
 
 //-- definitions -----
 struct WinBLEDeviceInfo
@@ -44,6 +43,7 @@ struct WinBLEDeviceInfo
 	std::string FriendlyName;
 	std::string BluetoothAddress;
 	BluetoothUUIDSet ServiceUUIDSet;
+	BluetoothUUIDDevicePathMap ServiceDevicePathMap;
 
 	WinBLEDeviceInfo()
 		: DevicePath()
@@ -51,6 +51,7 @@ struct WinBLEDeviceInfo
 		, FriendlyName()
 		, BluetoothAddress()
 		, ServiceUUIDSet()
+		, ServiceDevicePathMap()
 	{
 	}
 
@@ -61,11 +62,11 @@ struct WinBLEDeviceInfo
 	{
 		bool bSuccess = true;
 
-		fetchDevicePath(interfaceDetailData);
+		DevicePath= win32_device_interface_get_symbolic_path(interfaceDetailData);
 
 		// Get the friendly name. If it fails it is OK to leave the
 		// device_info_data.friendly_name as nullptr indicating the name not read.
-		fetchBLEDeviceFriendlyName(deviceInfoSetHandle, deviceInfoData);
+		win32_device_fetch_friendly_Name(deviceInfoSetHandle, deviceInfoData, FriendlyName);
 
 		//if (!verifyBLEDeviceConnected(deviceInfoSetHandle, deviceInfoData))
 		//{
@@ -77,10 +78,10 @@ struct WinBLEDeviceInfo
 			return false;
 		}
 
-		if (!fetchBLEDeviceInstanceId(deviceInfoSetHandle, deviceInfoData))
+		if (!win32_device_fetch_device_instance_id(deviceInfoSetHandle, deviceInfoData, DeviceInstanceId))
 		{
 			return false;
-	}
+		}
 
 		if (!parseBLEDeviceAddressFromInstanceId(DeviceInstanceId, BluetoothAddress))
 		{
@@ -91,112 +92,6 @@ struct WinBLEDeviceInfo
 	}
 
 private: 
-	bool fetchRegistryStringProperty(
-		const HDEVINFO &device_info_set_handle,
-		const SP_DEVINFO_DATA &device_info_data,
-		DWORD property_id,
-		std::string &out_string)
-	{
-		ULONG required_length = 0;
-		SP_DEVINFO_DATA deviceInfoDataCopy = device_info_data;
-		SetupDiGetDeviceRegistryPropertyA(
-			device_info_set_handle,
-			const_cast<SP_DEVINFO_DATA *>(&device_info_data),
-			property_id,
-			NULL,
-			NULL,
-			0,
-			&required_length);
-		if (required_length == 0)
-		{
-			std::string errorString= GetLastErrorAsString();
-			return false;
-		}
-
-		uint8_t *property_value(new uint8_t[required_length]);
-		ULONG actual_length = required_length;
-		DWORD property_type;
-		BOOL success = SetupDiGetDeviceRegistryPropertyA(
-			device_info_set_handle,
-			const_cast<SP_DEVINFO_DATA *>(&device_info_data),
-			property_id,
-			&property_type,
-			property_value,
-			actual_length,
-			&required_length);
-
-		if (success)
-		{
-			if (property_type == REG_SZ)
-			{
-				out_string= (char *)property_value;
-			}
-			else
-			{
-				success= FALSE;
-			}
-		}
-
-		delete[] property_value;
-
-		return success == TRUE;
-	}
-
-	void fetchBLEDeviceFriendlyName(
-		const HDEVINFO &device_info_set_handle,
-		const SP_DEVINFO_DATA &device_info_data)
-	{
-		if (!fetchRegistryStringProperty(
-				device_info_set_handle,
-				device_info_data,
-				SPDRP_FRIENDLYNAME,
-				FriendlyName))
-		{
-			fetchRegistryStringProperty(
-				device_info_set_handle,
-				device_info_data,
-				SPDRP_DEVICEDESC,
-				FriendlyName);
-		}
-	}
-
-	void fetchDevicePath(const SP_DEVICE_INTERFACE_DETAIL_DATA &interfaceDetailData)
-	{
-		char raw_device_path[512];
-#ifdef UNICODE
-		wcstombs(raw_device_path, interfaceDetailData.DevicePath, (unsigned)_countof(raw_device_path));
-#else
-		strncpy_s(raw_device_path, interfaceDetailData.DevicePath, (unsigned)_countof(raw_device_path));
-#endif
-		DevicePath = raw_device_path;
-	}
-
-	bool fetchBLEDeviceInstanceId(
-		const HDEVINFO &deviceInfoSetHandle,
-		const SP_DEVINFO_DATA &deviceInfoData)
-	{
-		char szInstanceId[512];
-		DWORD kInstanceIdBufferSize = (DWORD)sizeof(szInstanceId);
-		DWORD requiredBufferSize = 0;
-
-		SP_DEVINFO_DATA deviceInfoDataCopy = deviceInfoData;
-		BOOL success = 
-			SetupDiGetDeviceInstanceIdA(
-				deviceInfoSetHandle,
-				&deviceInfoDataCopy,
-				szInstanceId,
-				kInstanceIdBufferSize,
-				&requiredBufferSize);
-		assert(requiredBufferSize <= kInstanceIdBufferSize);
-
-		if (success == TRUE)
-		{
-			DeviceInstanceId = szInstanceId;
-		}
-
-		return true;
-	}
-
 	static bool parseBLEDeviceAddressFromInstanceId(
 		const std::string &DeviceInstanceId,
 		std::string &BluetoothAddress)
@@ -331,6 +226,7 @@ public:
 	WinBLEDeviceEnumerator()
 	{
 		buildBLEDeviceList();
+		buildBLEServiceInterfaceList();
 
 		api_type= _BLEApiType_WinBLE;
 		BluetoothLEDeviceEnumerator::device_index= -1;
@@ -339,7 +235,7 @@ public:
 
 	bool isValid() const
 	{
-		return BluetoothLEDeviceEnumerator::device_index < (int)m_deviceInfoList.size();
+		return BluetoothLEDeviceEnumerator::device_index < (int)m_bleDeviceList.size();
 	}
 
 	void next()
@@ -349,109 +245,118 @@ public:
 
 	inline std::string getDevicePath() const
 	{
-		return (isValid()) ? m_deviceInfoList[BluetoothLEDeviceEnumerator::device_index].DevicePath : std::string();
+		return (isValid()) ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->DevicePath : std::string();
 	}
 
 	inline std::string getDeviceInstanceId() const 
 	{
-		return (isValid()) ? m_deviceInfoList[BluetoothLEDeviceEnumerator::device_index].DeviceInstanceId : std::string();
+		return (isValid()) ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->DeviceInstanceId : std::string();
 	}
 
 	inline std::string getFriendlyName() const
 	{
-		return (isValid()) ? m_deviceInfoList[BluetoothLEDeviceEnumerator::device_index].FriendlyName : std::string();
+		return (isValid()) ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->FriendlyName : std::string();
 	}
 
 	inline std::string getBluetoothAddress() const
 	{
-		return (isValid()) ? m_deviceInfoList[BluetoothLEDeviceEnumerator::device_index].BluetoothAddress : std::string();
+		return (isValid()) ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->BluetoothAddress : std::string();
 	}
 
 	inline BluetoothUUIDSet getServiceUUIDSet() const
 	{
-		return isValid() ? m_deviceInfoList[BluetoothLEDeviceEnumerator::device_index].ServiceUUIDSet : BluetoothUUIDSet();
+		return isValid() ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->ServiceUUIDSet : BluetoothUUIDSet();
+	}
+
+	inline BluetoothUUIDDevicePathMap getServiceDevicePathTable() const
+	{
+		return isValid() ? m_bleDeviceList[BluetoothLEDeviceEnumerator::device_index]->ServiceDevicePathMap : BluetoothUUIDDevicePathMap();
 	}
 
 protected:
 	void buildBLEDeviceList()
 	{
-		HDEVINFO deviceInfoSetHandle = 
-			//SetupDiGetClassDevs(
-			//	&GUID_BLUETOOTH_GATT_SERVICE_DEVICE_INTERFACE, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-			SetupDiGetClassDevs(
-				&GUID_BLUETOOTHLE_DEVICE_INTERFACE, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-
-		SP_DEVINFO_DATA deviceInfoData;
-		ZeroMemory(&deviceInfoData, sizeof(SP_DEVINFO_DATA));
-		deviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
-
-		DWORD deviceInfoSetIndex = 0;
-		while(SetupDiEnumDeviceInfo(deviceInfoSetHandle, deviceInfoSetIndex, &deviceInfoData))
+		for (Win32DeviceInfoIterator dev_iter(GUID_BLUETOOTHLE_DEVICE_INTERFACE, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+			dev_iter.isValid();
+			dev_iter.next())
 		{
-			DWORD deviceInterfaceIndex = 0;
-
-			SP_DEVICE_INTERFACE_DATA interfaceData;
-			ZeroMemory(&interfaceData, sizeof(SP_DEVICE_INTERFACE_DATA));
-			interfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
-
-			while (SetupDiEnumDeviceInterfaces(
-				deviceInfoSetHandle,
-				NULL,
-				//&GUID_BLUETOOTH_GATT_SERVICE_DEVICE_INTERFACE,
-				&GUID_BLUETOOTHLE_DEVICE_INTERFACE,
-				deviceInterfaceIndex,
-				&interfaceData) == TRUE)
+			for (Win32DeviceInterfaceIterator iface_iter(dev_iter); iface_iter.isValid(); iface_iter.next())
 			{
-				ULONG requiredLength = 0;
-				SetupDiGetDeviceInterfaceDetail(deviceInfoSetHandle, &interfaceData, NULL, 0, &requiredLength, NULL);
-				PSP_DEVICE_INTERFACE_DETAIL_DATA interfaceDetailData =
-					(PSP_DEVICE_INTERFACE_DETAIL_DATA)LocalAlloc(LMEM_FIXED, requiredLength);
+				const SP_DEVICE_INTERFACE_DETAIL_DATA* iface_detail_data= iface_iter.getInterfaceDetailData();
 
-				if (interfaceDetailData != NULL)
+				if (iface_detail_data != nullptr)
 				{
-					SP_DEVINFO_DATA deviceInfoData = { 0 };
-					deviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+					auto newDeviceInfo = std::make_unique<WinBLEDeviceInfo>();
+					const SP_DEVINFO_DATA &dev_info_data= dev_iter.getDeviceInfo();
 
-					interfaceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
-					ULONG length = requiredLength;
-
-					if (SetupDiGetDeviceInterfaceDetail(
-						deviceInfoSetHandle,
-						&interfaceData,
-						interfaceDetailData,
-						length,
-						&requiredLength,
-						&deviceInfoData) == TRUE)
+					if (newDeviceInfo->init(dev_iter.getDeviceInfoSetHandle(), dev_iter.getDeviceInfo(), *iface_detail_data))
 					{
-						WinBLEDeviceInfo newDeviceInfo;
+						const int ble_device_list_index= (int)m_bleDeviceList.size();
 
-						if (newDeviceInfo.init(deviceInfoSetHandle, deviceInfoData, *interfaceDetailData))
-						{
-							m_deviceInfoList.push_back(newDeviceInfo);
-						}
-					}
-
-					if (interfaceDetailData != NULL)
-					{
-						LocalFree(interfaceDetailData);
-						interfaceDetailData = NULL;
+						m_bleDeviceList.push_back(std::move(newDeviceInfo));
+						m_bleDeviceInstTable.insert(std::make_pair(dev_info_data.DevInst, ble_device_list_index));
 					}
 				}
-
-				++deviceInterfaceIndex;
 			}
-
-			++deviceInfoSetIndex;
 		}
+	}
 
-		if (deviceInfoSetHandle != INVALID_HANDLE_VALUE)
+	void buildBLEServiceInterfaceList()
+	{
+		for (Win32DeviceInfoIterator dev_iter(GUID_BLUETOOTH_GATT_SERVICE_DEVICE_INTERFACE, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+			dev_iter.isValid();
+			dev_iter.next())
 		{
-			SetupDiDestroyDeviceInfoList(deviceInfoSetHandle);
+			HDEVINFO dev_info_set_handle= dev_iter.getDeviceInfoSetHandle();
+
+			for (Win32DeviceInterfaceIterator iface_iter(dev_iter); iface_iter.isValid(); iface_iter.next())
+			{
+				const SP_DEVICE_INTERFACE_DETAIL_DATA* iface_detail_data = iface_iter.getInterfaceDetailData();
+
+				if (iface_detail_data != nullptr)
+				{
+					const SP_DEVINFO_DATA& dev_info_data = dev_iter.getDeviceInfo();
+
+					// Get the symbolic path of the Service path
+					const std::string interface_symbolic_path= win32_device_interface_get_symbolic_path(*iface_detail_data);
+
+					// Extract the bluetooth device address from the device instance ID string, 
+					// \\?\bthledevice#{00001800-0000-1000-8000-00805f9b34fb}_dev_ma&polar_electro_oy_mo&h10_fw&5.0.0_cb37c3e454b5#9&82b4232&1&0001#{6e3bb679-4372-40c8-9eaa-4509df260cd8}
+					std::regex address_regex(R"(([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}))", std::regex_constants::ECMAScript | std::regex_constants::icase);
+					std::smatch match_results;
+					if (std::regex_search(interface_symbolic_path, match_results, address_regex) && match_results.size() < 2)
+					{
+						continue;
+					}
+
+					std::string uuid_string = match_results[1];
+					BluetoothUUID serviceUUID(uuid_string);
+
+					// Get the parent device instance
+					DEVINST parent_dev_instance;
+					if (CM_Get_Parent(&parent_dev_instance, dev_info_data.DevInst, 0) != CR_SUCCESS)
+					{
+						continue;
+					}
+
+					// Look up the parent device we found earlier
+					auto win_ble_dev_iter = m_bleDeviceInstTable.find(parent_dev_instance);
+					if (win_ble_dev_iter != m_bleDeviceInstTable.end())
+					{
+						const int ble_device_list_index= win_ble_dev_iter->second;
+
+						// Finally, make a mapping from service UUID to symbolic path for the device
+						m_bleDeviceList[ble_device_list_index]->ServiceDevicePathMap.insert(
+							std::make_pair(serviceUUID, interface_symbolic_path));
+					}
+				}
+			}
 		}
 	}
 
 private:
-	std::vector<WinBLEDeviceInfo> m_deviceInfoList;
+	std::vector<std::unique_ptr<WinBLEDeviceInfo>> m_bleDeviceList;
+	std::map<DEVINST, int> m_bleDeviceInstTable;
 };
 
 //-- WinBLEDeviceState -----
@@ -464,6 +369,7 @@ WinBLEDeviceState::WinBLEDeviceState(const WinBLEDeviceEnumerator* enumerator)
 	bluetoothAddress = enumerator->getBluetoothAddress();
 	deviceHandle = INVALID_HANDLE_VALUE;
 	m_serviceUUIDSet = enumerator->getServiceUUIDSet();
+	m_serviceDevicePathMap = enumerator->getServiceDevicePathTable();
 }
 
 WinBLEDeviceState::~WinBLEDeviceState()
@@ -473,56 +379,121 @@ WinBLEDeviceState::~WinBLEDeviceState()
 
 bool WinBLEDeviceState::openDevice(BLEGattProfile **out_gatt_profile)
 {
-	bool bSuccess = true;
-
+	// Open the main device handle
 	deviceHandle = CreateFile(
 		devicePath.c_str(),
 		GENERIC_WRITE | GENERIC_READ,
 		FILE_SHARE_WRITE | FILE_SHARE_READ,
 		NULL,
 		OPEN_EXISTING,
-		0, //FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+		0,
 		NULL);
-
-	if (deviceHandle != INVALID_HANDLE_VALUE)
+	if (deviceHandle == INVALID_HANDLE_VALUE)
 	{
-		gattProfile = new WinBLEGattProfile(this);
+		return false;
+	}
 
-		if (!static_cast<WinBLEGattProfile *>(gattProfile)->fetchServices())
-		{		
-			closeDevice();
-		}
+	// Open each service device handle
+	for (auto iter = m_serviceDevicePathMap.begin(); iter != m_serviceDevicePathMap.end(); ++iter)
+	{		
+		HANDLE serviceDeviceHandle = CreateFile(
+			iter->second.c_str(),
+			GENERIC_WRITE | GENERIC_READ,
+			FILE_SHARE_WRITE | FILE_SHARE_READ,
+			NULL,
+			OPEN_EXISTING,
+			0,
+			NULL);
 
-		if (out_gatt_profile != nullptr)
+		if (serviceDeviceHandle == INVALID_HANDLE_VALUE)
 		{
-			*out_gatt_profile = gattProfile;
+			// Fall back to read only
+			serviceDeviceHandle = CreateFile(
+				iter->second.c_str(),
+				GENERIC_READ,
+				FILE_SHARE_READ,
+				NULL,
+				OPEN_EXISTING,
+				0,
+				NULL);
 		}
-	}
-	else
-	{
-		bSuccess = false;
+
+		if (serviceDeviceHandle != INVALID_HANDLE_VALUE)
+		{
+			m_serviceDeviceHandleMap.insert(std::make_pair(iter->first, serviceDeviceHandle));
+		}
+		//else
+		//{
+		//	return false;
+		//}
 	}
 
-	return bSuccess;
+	gattProfile = new WinBLEGattProfile(this);
+	if (!static_cast<WinBLEGattProfile *>(gattProfile)->fetchServices())
+	{		
+		closeDevice();
+	}
+
+	if (out_gatt_profile != nullptr)
+	{
+		*out_gatt_profile = gattProfile;
+	}
+
+	return true;
 }
 
 void WinBLEDeviceState::closeDevice()
 {
+	HSL_LOG_INFO("WinBLEApi::closeBluetoothLEDevice") << "Close BLE device handle " << deviceHandle;
+
+	if (gattProfile != nullptr)
+	{
+		static_cast<WinBLEGattProfile*>(gattProfile)->freeServices();
+
+		delete gattProfile;
+		gattProfile = nullptr;
+	}
+
+	for (auto iter = m_serviceDeviceHandleMap.begin(); iter != m_serviceDeviceHandleMap.end(); ++iter)
+	{
+		if (iter->second != INVALID_HANDLE_VALUE)
+		{
+			CloseHandle(iter->second);
+		}
+	}
+	m_serviceDeviceHandleMap.clear();
+
 	if (deviceHandle != INVALID_HANDLE_VALUE)
 	{
-		HSL_LOG_INFO("WinBLEApi::closeBluetoothLEDevice") << "Close BLE device handle " << deviceHandle;
-
-		if (gattProfile != nullptr)
-		{
-			static_cast<WinBLEGattProfile *>(gattProfile)->freeServices();
-
-			delete gattProfile;
-			gattProfile = nullptr;
-		}
-
 		CloseHandle(deviceHandle);
 		deviceHandle = INVALID_HANDLE_VALUE;
 	}
+}
+
+bool WinBLEDeviceState::getServiceInterfaceDevicePath(
+	const BluetoothUUID& service_uuid,
+	std::string& out_symbolic_path) const
+{
+	auto iter = m_serviceDevicePathMap.find(service_uuid);
+	if (iter != m_serviceDevicePathMap.end())
+	{
+		out_symbolic_path = iter->second;
+		return true;
+	}
+
+	return false;
+}
+
+HANDLE WinBLEDeviceState::getServiceDeviceHandle(
+	const BluetoothUUID& service_uuid) const
+{
+	auto iter = m_serviceDeviceHandleMap.find(service_uuid);
+	if (iter != m_serviceDeviceHandleMap.end())
+	{
+		return iter->second;
+	}
+
+	return nullptr;
 }
 
 //-- public interface -----
@@ -705,7 +676,7 @@ bool WinBLEApi::canBluetoothLEDeviceBeOpened(const BluetoothLEDeviceEnumerator* 
 			}
 			else
 			{
-				std::string error_string= GetLastErrorAsString();
+				std::string error_string= win32_get_last_error_as_string();
 				strncpy(outReason, error_string.c_str(), bufferSize);
 			}
 		}
@@ -773,27 +744,4 @@ bool WinBLEApi::getBluetoothLEGattProfile(const BluetoothLEDeviceState* device_s
 	}
 
 	return bSuccess;
-}
-
-static std::string GetLastErrorAsString()
-{
-	DWORD errorMessageID = GetLastError();
-
-	if(errorMessageID == 0)
-			return std::string(); //No error message has been recorded
-
-	LPSTR messageBuffer = nullptr;
-	size_t size = FormatMessageA(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, 
-			errorMessageID, 
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
-			(LPSTR)&messageBuffer, 
-			0, 
-			NULL);
-	std::string message(messageBuffer, size);
-
-	LocalFree(messageBuffer);
-
-	return message;
 }

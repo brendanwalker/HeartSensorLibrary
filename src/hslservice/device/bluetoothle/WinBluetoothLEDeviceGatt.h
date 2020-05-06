@@ -24,9 +24,8 @@ public:
 	bool fetchServices();
 	void freeServices();
 
-	inline HANDLE getDeviceHandle() const;
-
 private:
+	HANDLE m_deviceHandle;
 	BTH_LE_GATT_SERVICE *serviceBufferWinAPI;
 };
 
@@ -40,9 +39,10 @@ public:
 	bool fetchCharacteristics();
 	void freeCharacteristics();
 
-	HANDLE getDeviceHandle() const;
+	inline HANDLE getServiceDeviceHandle() const { return m_serviceDeviceHandle; }
 
 protected:
+	HANDLE m_serviceDeviceHandle;
 	BTH_LE_GATT_SERVICE *serviceWinAPI;
 	BTH_LE_GATT_CHARACTERISTIC *characteristicBufferWinAPI;
 };
@@ -57,7 +57,7 @@ public:
 	bool fetchDescriptors();
 	void freeDescriptors();
 
-	HANDLE getDeviceHandle() const;
+	HANDLE getServiceDeviceHandle() const;
 	BTH_LE_GATT_CHARACTERISTIC *getCharacteristicWinAPI();
 
 	virtual bool getIsBroadcastable() const;
@@ -93,7 +93,7 @@ public:
 	WinBLEGattCharacteristicValue(BLEGattCharacteristic *characteristic);
 	WinBLEGattCharacteristic* getParentCharacteristic() const;
 
-	HANDLE getDeviceHandle() const;
+	HANDLE getServiceDeviceHandle() const;
 	BTH_LE_GATT_CHARACTERISTIC *getCharacteristicWinAPI() const;
 	
 	virtual bool getByte(uint8_t &outValue);
@@ -115,7 +115,7 @@ class WinBLEGattDescriptor : public BLEGattDescriptor
 public:
 	WinBLEGattDescriptor(BLEGattCharacteristic *characteristic, const BluetoothUUID &uuid, BTH_LE_GATT_DESCRIPTOR *descriptor);
 
-	HANDLE getDeviceHandle() const;
+	HANDLE getServiceDeviceHandle() const;
 	BTH_LE_GATT_DESCRIPTOR *getDescriptorWinAPI();
 
 protected:
@@ -128,7 +128,7 @@ public:
 	WinBLEGattDescriptorValue(BLEGattDescriptor *descriptor, BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValue);
 	WinBLEGattDescriptor* getParentDescriptor() const;
 
-	HANDLE getDeviceHandle() const;
+	HANDLE getServiceDeviceHandle() const;
 	BTH_LE_GATT_DESCRIPTOR *getDescriptorWinAPI() const;
 
 	virtual bool readDescriptorValue();

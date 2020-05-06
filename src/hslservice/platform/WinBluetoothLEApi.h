@@ -2,8 +2,11 @@
 #define WIN_BLE_API_H
 
 #include "BluetoothLEApiInterface.h"
+#include <map>
 
-typedef void * HANDLE;
+using HANDLE = void *;
+using BluetoothUUIDDevicePathMap = std::map<BluetoothUUID, std::string>;
+using BluetoothServiceHandleMap = std::map<BluetoothUUID, HANDLE>;
 
 class WinBLEDeviceState : public BluetoothLEDeviceState
 {
@@ -16,6 +19,8 @@ public:
 	inline const std::string& getFriendlyName() const { return friendlyName; }
 	inline const std::string& getBluetoothAddress() const { return bluetoothAddress; }
 	inline const BluetoothUUIDSet& getServiceUUIDSet() const { return m_serviceUUIDSet; }
+	bool getServiceInterfaceDevicePath(const BluetoothUUID& service_uuid, std::string& out_symbolic_path) const;
+	HANDLE getServiceDeviceHandle(const BluetoothUUID& service_uuid) const;
 
 	bool openDevice(BLEGattProfile **out_gatt_profile);
 	void closeDevice();
@@ -28,6 +33,8 @@ private:
 	std::string friendlyName;
 	std::string bluetoothAddress;
 	BluetoothUUIDSet m_serviceUUIDSet;
+	BluetoothUUIDDevicePathMap m_serviceDevicePathMap;
+	BluetoothServiceHandleMap m_serviceDeviceHandleMap;
 
 	HANDLE deviceHandle;
 };

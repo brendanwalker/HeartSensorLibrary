@@ -19,11 +19,12 @@
 #include <Shellapi.h>
 #include <Mfapi.h>
 
-
 #include <string>
 #include <vector>
 #include <iostream>
 #include <iomanip>
+
+#include "WinDeviceUtils.h"
 
 //-- constants -----
 const char *k_reg_property_driver_desc = "DriverDesc";
@@ -47,69 +48,6 @@ HDEVNOTIFY g_hHIDDeviceNotify = nullptr;
 HDEVNOTIFY g_hGenericUSBDeviceNotify = nullptr;
 std::vector<HDEVNOTIFY> g_BluetoothDeviceNotify;
 HWND g_hWnd = nullptr;
-
-//-- private definitions -----
-class DeviceInfoIterator
-{
-public:
-	DeviceInfoIterator(const GUID &deviceClassGUID)
-		: m_DeviceClassGUID(deviceClassGUID)
-		, m_DeviceInfoSetHandle(INVALID_HANDLE_VALUE)
-		, m_MemberIndex(-1)
-		, m_bNoMoreItems(false)
-	{
-		m_DeviceInfoSetHandle = SetupDiGetClassDevs((LPGUID)&m_DeviceClassGUID, 0, 0, DIGCF_PRESENT);
-		m_DeviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
-
-		if (isValid())
-		{
-			next();
-		}
-	}
-
-	virtual ~DeviceInfoIterator()
-	{
-		if (m_DeviceInfoSetHandle != INVALID_HANDLE_VALUE)
-		{
-			SetupDiDestroyDeviceInfoList(m_DeviceInfoSetHandle);
-		}
-	}
-
-	bool isValid() const
-	{
-		return m_DeviceInfoSetHandle != INVALID_HANDLE_VALUE && !m_bNoMoreItems;
-	}
-
-	void next()
-	{
-		if (isValid())
-		{
-			++m_MemberIndex;
-
-			if (SetupDiEnumDeviceInfo(m_DeviceInfoSetHandle, m_MemberIndex, &m_DeviceInfoData) == FALSE)
-			{
-				m_bNoMoreItems = true;
-			}
-		}
-	}
-
-	inline HDEVINFO getDeviceInfoSetHandle() const
-	{
-		return m_DeviceInfoSetHandle;
-	}
-
-	inline SP_DEVINFO_DATA &getDeviceInfo()
-	{
-		return m_DeviceInfoData;
-	}
-
-private:
-	const GUID &m_DeviceClassGUID;
-	HDEVINFO m_DeviceInfoSetHandle;
-	SP_DEVINFO_DATA m_DeviceInfoData;
-	int m_MemberIndex;
-	bool m_bNoMoreItems;
-};
 
 //-- private prototypes -----
 static bool fetch_property_string(HDEVINFO devInfoSetHandle, SP_DEVINFO_DATA &devInfo, const DWORD propertyType,
@@ -321,7 +259,7 @@ bool PlatformDeviceAPIWin32::get_device_property(
 		StringCchPrintfA(expected_hardware_id, sizeof(expected_hardware_id), "USB\\VID_%X&PID_%X", vendor_id, product_id);
 		StringCchLengthA(expected_hardware_id, sizeof(expected_hardware_id), &expected_length);
 
-		for (DeviceInfoIterator iter(*deviceClassGUID); iter.isValid(); iter.next())
+		for (Win32DeviceInfoIterator iter(*deviceClassGUID, DIGCF_PRESENT); iter.isValid(); iter.next())
 		{
 			char hardware_id_property[128]; // ex: "USB\\VID_1415&PID_2000&REV_0200&MI_00"
 

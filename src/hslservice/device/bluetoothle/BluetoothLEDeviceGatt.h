@@ -45,6 +45,8 @@ public:
 	BLEGattProfile(class BluetoothLEDeviceState *device);
 	virtual ~BLEGattProfile();
 
+	inline class BluetoothLEDeviceState *getParentDevice() const { return parentDevice; }
+
 	inline const std::vector<class BLEGattService *> &getServices() const { return services; }
 	const class BLEGattService* findService(const BluetoothUUID& uuid) const;
 
