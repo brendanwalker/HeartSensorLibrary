@@ -9,28 +9,30 @@ public:
 	explicit CircularBuffer(size_t initial_capacity) :
 		m_buffer(new T[initial_capacity]),
 		m_capacity(initial_capacity)
-	{ }
+	{ 
+		memset(m_buffer, 0, sizeof(T)*initial_capacity);
+	}
 
 	~CircularBuffer()
 	{
 		delete[] m_buffer;
 	}
 
-	void pushHead(T item)
+	void writeItem(T item)
 	{
-		m_buffer[m_headIndex] = item;
+		m_buffer[m_writeIndex] = item;
 
 		if (m_full)
 		{
-			m_tailIndex = (m_tailIndex + 1) % m_capacity;
+			m_readIndex = (m_readIndex + 1) % m_capacity;
 		}
 
-		m_headIndex = (m_headIndex + 1) % m_capacity;
+		m_writeIndex = (m_writeIndex + 1) % m_capacity;
 
-		m_full = m_headIndex == m_tailIndex;
+		m_full = m_writeIndex == m_readIndex;
 	}
 
-	T popTail()
+	T readItem()
 	{
 		if (empty())
 		{
@@ -38,23 +40,23 @@ public:
 		}
 
 		//Read data and advance the tail (we now have a free space)
-		auto val = m_buffer[m_tailIndex];
+		auto val = m_buffer[m_readIndex];
 		m_full = false;
-		m_tailIndex = (m_tailIndex + 1) % m_capacity;
+		m_readIndex = (m_readIndex + 1) % m_capacity;
 
 		return val;
 	}
 	
 	void reset()
 	{
-		m_headIndex = m_tailIndex;
+		m_writeIndex = m_readIndex;
 		m_full = false;
 	}
 
 	bool isEmpty() const
 	{
 		//if head and tail are equal, we are empty
-		return (!m_full && (m_headIndex == m_tailIndex));
+		return (!m_full && (m_writeIndex == m_readIndex));
 	}
 
 	bool isFull() const
@@ -68,14 +70,14 @@ public:
 		return m_buffer;
 	}
 
-	size_t getHeadIndex() const 
+	size_t getWriteIndex() const 
 	{
-		return m_headIndex;
+		return m_writeIndex;
 	}
 
-	size_t getTailIndex() const
+	size_t getReadIndex() const
 	{
-		return m_tailIndex;
+		return m_readIndex;
 	}
 
 	size_t getCapacity() const
@@ -89,35 +91,77 @@ public:
 			return;
 
 		T *new_buffer = new T[new_capacity];
+		memset(new_buffer, 0, sizeof(T)*new_capacity);
 
-		if (m_tailIndex < m_headIndex)
+		if (!isEmpty())
 		{
-			size_t upper_copy_count = std::min(m_capacity - m_headIndex, new_capacity);
-			size_t lower_copy_count = std::max(std::min(m_tailIndex + 1, new_capacity - upper_copy_count), 0);
-
-			std::memmove(new_buffer, &m_buffer[m_headIndex], upper_copy_count);
-
-			if (lower_copy_count > 0)
+			// If the write_index has wrapped past the end of the buffer,
+			// then we have to copy the buffer in two parts
+			if (m_writeIndex < m_readIndex || m_full)
 			{
-				std::memmove(&new_buffer[upper_copy_count], &m_buffer[0], lower_copy_count);
-			}
+				size_t upper_copy_count = m_capacity - m_readIndex;
+				size_t lower_copy_count = m_readIndex;
+				size_t new_space_remaining= new_capacity;
 
-			m_headIndex = 0;
-			m_tailIndex = (upper_copy_count + lower_copy_count) % new_capacity;
+				// Copy the upper half to the start of the new buffer
+				if (upper_copy_count < new_space_remaining)
+				{
+					// There is space for the all of the upper half
+					std::memmove(new_buffer, &m_buffer[m_readIndex], upper_copy_count);
+					new_space_remaining-= upper_copy_count;
+				}
+				else
+				{
+					// Not enough space, trim it down to fit
+					std::memmove(new_buffer, &m_buffer[m_readIndex], new_capacity);
+					new_space_remaining = 0;
+				}
+
+				// Copy the lower half next if there is space
+				if (new_space_remaining > 0 && lower_copy_count > 0)
+				{				
+					if (lower_copy_count < new_space_remaining)
+					{
+						// There is space for all of the lower half
+						std::memmove(&new_buffer[upper_copy_count], &m_buffer[0], lower_copy_count);
+						new_space_remaining-= lower_copy_count;
+					}
+					else
+					{
+						// Not enough space, trim it down to fit
+						std::memmove(&new_buffer[upper_copy_count], &m_buffer[0], new_space_remaining);
+						new_space_remaining= 0;
+					}
+				}
+
+				m_readIndex = 0;
+				m_writeIndex = (new_capacity - new_space_remaining) % new_capacity;
+				m_full= new_space_remaining > 0;
+			}
+			// If the write_index has not wrapped,
+			// Then we can do a simple copy to the new buffer
+			else
+			{
+				// Trim down the buffer if it doesn't fit in the new array
+				size_t copy_count = std::min(m_readIndex - m_writeIndex + 1, new_capacity);
+
+				std::memmove(new_buffer, &m_buffer[m_readIndex], copy_count);
+				m_readIndex = 0;
+				m_writeIndex = copy_count % new_capacity;
+				m_full = m_writeIndex == m_readIndex;
+			}
 		}
 		else
 		{
-			size_t copy_count = std::min(m_tailIndex - m_headIndex + 1, new_capacity);
-
-			std::memmove(new_buffer, &m_buffer[m_headIndex], copy_count);
-			m_headIndex = 0;
-			m_tailIndex = copy_count % new_capacity;
+			// For empty buffer, snap read and write indices back to start in case the new buffer shrank
+			m_readIndex= 0;
+			m_writeIndex= 0;
+			m_full= false;
 		}
 
 		delete[] m_buffer;
 		m_buffer = new_buffer;
 		m_capacity = new_capacity;
-		m_full = m_headIndex == m_tailIndex;
 	}
 
 	size_t getSize() const
@@ -126,13 +170,13 @@ public:
 
 		if (!m_full)
 		{
-			if (m_headIndex >= m_tailIndex)
+			if (m_writeIndex >= m_readIndex)
 			{
-				size = m_headIndex - m_tailIndex;
+				size = m_writeIndex - m_readIndex;
 			}
 			else
 			{
-				size = m_capacity + m_headIndex - m_tailIndex;
+				size = m_capacity + m_writeIndex - m_readIndex;
 			}
 		}
 
@@ -141,10 +185,10 @@ public:
 
 private:
 	T* m_buffer;
-	size_t m_headIndex = 0;
-	size_t m_tailIndex = 0;
+	size_t m_writeIndex = 0;
+	size_t m_readIndex = 0;
 	bool m_full = false;
-	const size_t m_capacity;
+	size_t m_capacity;
 };
 
 #endif // CIRCULAR_BUFFER_H
