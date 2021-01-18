@@ -60,10 +60,7 @@ ServerSensorView *ServiceRequestHandler::get_sensor_view_or_null(HSLSensorID sen
     {
         ServerSensorViewPtr sensor_view_ptr = m_deviceManager->getSensorViewPtr(sensor_id);
 
-        if (sensor_view_ptr->getIsOpen())
-        {
-            sensor_view = sensor_view_ptr.get();
-        }
+		sensor_view = sensor_view_ptr.get();
     }
 
     return sensor_view;
