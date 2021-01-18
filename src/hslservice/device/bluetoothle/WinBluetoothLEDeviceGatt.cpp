@@ -549,12 +549,21 @@ void WinBLEGattCharacteristic::unregisterChangeEvent(
 	}
 }
 
-//-- WinBLEGattCharacteristic -----
+//-- WinBLEGattCharacteristicValue -----
 WinBLEGattCharacteristicValue::WinBLEGattCharacteristicValue(BLEGattCharacteristic *characteristic)
 	: BLEGattCharacteristicValue(characteristic)
 	, characteristicValueBufferWinAPI(nullptr)
 	, maxTailBufferSize(0)
 { }
+
+WinBLEGattCharacteristicValue::~WinBLEGattCharacteristicValue()
+{
+	if (characteristicValueBufferWinAPI != nullptr)
+	{
+		free(characteristicValueBufferWinAPI);
+		characteristicValueBufferWinAPI = nullptr;
+	}
+}
 
 WinBLEGattCharacteristic* WinBLEGattCharacteristicValue::getParentCharacteristic() const
 {
@@ -734,6 +743,7 @@ WinBLEGattDescriptor::WinBLEGattDescriptor(BLEGattCharacteristic *characteristic
 	}
 
 	attributeHandle = BluetoothGattHandle((unsigned short)descriptor->AttributeHandle);
+	descriptorValue = new WinBLEGattDescriptorValue(this);
 }
 
 HANDLE WinBLEGattDescriptor::getServiceDeviceHandle() const
@@ -747,10 +757,20 @@ BTH_LE_GATT_DESCRIPTOR *WinBLEGattDescriptor::getDescriptorWinAPI()
 }
 
 //-- WinBLEGattDescriptorValue -----
-WinBLEGattDescriptorValue::WinBLEGattDescriptorValue(BLEGattDescriptor *descriptor, BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValue)
+WinBLEGattDescriptorValue::WinBLEGattDescriptorValue(BLEGattDescriptor *descriptor)
 	: BLEGattDescriptorValue(descriptor)
-	, descriptorValueWinAPI(descriptorValue)
+	, descriptorValueBufferWinAPI(nullptr)
+	, maxTailBufferSize(0)
 { }
+
+WinBLEGattDescriptorValue::~WinBLEGattDescriptorValue()
+{
+	if (descriptorValueBufferWinAPI != nullptr)
+	{
+		free(descriptorValueBufferWinAPI);
+		descriptorValueBufferWinAPI= nullptr;
+	}
+}
 
 WinBLEGattDescriptor* WinBLEGattDescriptorValue::getParentDescriptor() const
 {
@@ -778,21 +798,7 @@ bool WinBLEGattDescriptorValue::readDescriptorValue()
 		NULL,
 		&newDescriptorValueRequiredSize,
 		BLUETOOTH_GATT_FLAG_NONE);
-
-	// required_count > 0
-	if (hr == HRESULT_FROM_WIN32(ERROR_MORE_DATA))
-	{
-		return true;
-	}
-
-	// required_count = 0 (buffer doesn't exist)
-	if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
-	{
-		return false;
-	}
-
-	// required_count = 0 (buffer does exist and is empty)
-	if (SUCCEEDED(hr) && newDescriptorValueRequiredSize == 0)
+	if (!IsValidGattBufferResult(hr, newDescriptorValueRequiredSize))
 	{
 		return false;
 	}
@@ -805,7 +811,7 @@ bool WinBLEGattDescriptorValue::readDescriptorValue()
 		getServiceDeviceHandle(),
 		getDescriptorWinAPI(),
 		newDescriptorValueRequiredSize,
-		descriptorValueWinAPI,
+		descriptorValueBufferWinAPI,
 		NULL,
 		BLUETOOTH_GATT_FLAG_NONE);
 
@@ -817,7 +823,7 @@ bool WinBLEGattDescriptorValue::writeDescriptorValue()
 	HRESULT hr = BluetoothGATTSetDescriptorValue(
 		getServiceDeviceHandle(),
 		getDescriptorWinAPI(),
-		descriptorValueWinAPI,
+		descriptorValueBufferWinAPI,
 		BLUETOOTH_GATT_FLAG_NONE);
 
 	return hr == S_OK;
@@ -825,11 +831,11 @@ bool WinBLEGattDescriptorValue::writeDescriptorValue()
 
 bool WinBLEGattDescriptorValue::getCharacteristicExtendedProperties(BLEGattDescriptorValue::CharacteristicExtendedProperties &outProps) const
 {
-	if (descriptorValueWinAPI != nullptr &&
+	if (descriptorValueBufferWinAPI != nullptr &&
 		getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::CharacteristicExtendedProperties)
 	{
-		outProps.IsAuxiliariesWritable = descriptorValueWinAPI->CharacteristicExtendedProperties.IsAuxiliariesWritable;
-		outProps.IsReliableWriteEnabled = descriptorValueWinAPI->CharacteristicExtendedProperties.IsReliableWriteEnabled;
+		outProps.IsAuxiliariesWritable = descriptorValueBufferWinAPI->CharacteristicExtendedProperties.IsAuxiliariesWritable;
+		outProps.IsReliableWriteEnabled = descriptorValueBufferWinAPI->CharacteristicExtendedProperties.IsReliableWriteEnabled;
 
 		return true;
 	}
@@ -839,11 +845,11 @@ bool WinBLEGattDescriptorValue::getCharacteristicExtendedProperties(BLEGattDescr
 
 bool WinBLEGattDescriptorValue::getClientCharacteristicConfiguration(BLEGattDescriptorValue::ClientCharacteristicConfiguration &outConfig) const
 {
-	if (descriptorValueWinAPI != nullptr &&
+	if (descriptorValueBufferWinAPI != nullptr &&
 		getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::ClientCharacteristicConfiguration)
 	{
-		outConfig.IsSubscribeToIndication = descriptorValueWinAPI->ClientCharacteristicConfiguration.IsSubscribeToIndication;
-		outConfig.IsSubscribeToNotification = descriptorValueWinAPI->ClientCharacteristicConfiguration.IsSubscribeToNotification;
+		outConfig.IsSubscribeToIndication = descriptorValueBufferWinAPI->ClientCharacteristicConfiguration.IsSubscribeToIndication;
+		outConfig.IsSubscribeToNotification = descriptorValueBufferWinAPI->ClientCharacteristicConfiguration.IsSubscribeToNotification;
 		return true;
 	}
 
@@ -852,10 +858,10 @@ bool WinBLEGattDescriptorValue::getClientCharacteristicConfiguration(BLEGattDesc
 
 bool WinBLEGattDescriptorValue::getServerCharacteristicConfiguration(BLEGattDescriptorValue::ServerCharacteristicConfiguration &outConfig) const
 {
-	if (descriptorValueWinAPI != nullptr &&
+	if (descriptorValueBufferWinAPI != nullptr &&
 		getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::ServerCharacteristicConfiguration)
 	{
-		outConfig.IsBroadcast = descriptorValueWinAPI->ServerCharacteristicConfiguration.IsBroadcast;
+		outConfig.IsBroadcast = descriptorValueBufferWinAPI->ServerCharacteristicConfiguration.IsBroadcast;
 		return true;
 	}
 
@@ -864,14 +870,14 @@ bool WinBLEGattDescriptorValue::getServerCharacteristicConfiguration(BLEGattDesc
 
 bool WinBLEGattDescriptorValue::getCharacteristicFormat(BLEGattDescriptorValue::CharacteristicFormat &outFormat) const
 {
-	if (descriptorValueWinAPI != nullptr &&
+	if (descriptorValueBufferWinAPI != nullptr &&
 		getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::CharacteristicFormat)
 	{
-		outFormat.Description = WinBluetoothUUID(descriptorValueWinAPI->CharacteristicFormat.Description);
-		outFormat.Exponent = descriptorValueWinAPI->CharacteristicFormat.Exponent;
-		outFormat.Format = descriptorValueWinAPI->CharacteristicFormat.Format;
-		outFormat.NameSpace = descriptorValueWinAPI->CharacteristicFormat.NameSpace;
-		outFormat.Unit = WinBluetoothUUID(descriptorValueWinAPI->CharacteristicFormat.Unit);
+		outFormat.Description = WinBluetoothUUID(descriptorValueBufferWinAPI->CharacteristicFormat.Description);
+		outFormat.Exponent = descriptorValueBufferWinAPI->CharacteristicFormat.Exponent;
+		outFormat.Format = descriptorValueBufferWinAPI->CharacteristicFormat.Format;
+		outFormat.NameSpace = descriptorValueBufferWinAPI->CharacteristicFormat.NameSpace;
+		outFormat.Unit = WinBluetoothUUID(descriptorValueBufferWinAPI->CharacteristicFormat.Unit);
 
 		return true;
 	}
@@ -885,8 +891,8 @@ bool WinBLEGattDescriptorValue::setCharacteristicExtendedProperties(const BLEGat
 
 	if (getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::CharacteristicExtendedProperties)
 	{
-		descriptorValueWinAPI->CharacteristicExtendedProperties.IsAuxiliariesWritable = inProps.IsAuxiliariesWritable;
-		descriptorValueWinAPI->CharacteristicExtendedProperties.IsReliableWriteEnabled = inProps.IsReliableWriteEnabled;
+		descriptorValueBufferWinAPI->CharacteristicExtendedProperties.IsAuxiliariesWritable = inProps.IsAuxiliariesWritable;
+		descriptorValueBufferWinAPI->CharacteristicExtendedProperties.IsReliableWriteEnabled = inProps.IsReliableWriteEnabled;
 
 		return true;
 	}
@@ -900,8 +906,8 @@ bool WinBLEGattDescriptorValue::setClientCharacteristicConfiguration(const BLEGa
 
 	if (getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::ClientCharacteristicConfiguration)
 	{
-		descriptorValueWinAPI->ClientCharacteristicConfiguration.IsSubscribeToIndication = inConfig.IsSubscribeToIndication;
-		descriptorValueWinAPI->ClientCharacteristicConfiguration.IsSubscribeToNotification = inConfig.IsSubscribeToNotification;
+		descriptorValueBufferWinAPI->ClientCharacteristicConfiguration.IsSubscribeToIndication = inConfig.IsSubscribeToIndication;
+		descriptorValueBufferWinAPI->ClientCharacteristicConfiguration.IsSubscribeToNotification = inConfig.IsSubscribeToNotification;
 
 		return true;
 	}
@@ -915,7 +921,7 @@ bool WinBLEGattDescriptorValue::setServerCharacteristicConfiguration(const BLEGa
 
 	if (getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::ServerCharacteristicConfiguration)
 	{
-		descriptorValueWinAPI->ServerCharacteristicConfiguration.IsBroadcast = inConfig.IsBroadcast;
+		descriptorValueBufferWinAPI->ServerCharacteristicConfiguration.IsBroadcast = inConfig.IsBroadcast;
 
 		return true;
 	}
@@ -929,11 +935,11 @@ bool WinBLEGattDescriptorValue::setCharacteristicFormat(const BLEGattDescriptorV
 
 	if (getParentDescriptor()->getDescriptorType() == BLEGattDescriptor::DescriptorType::CharacteristicFormat)
 	{
-		WinBluetoothUUID(inFormat.Description).ToWinAPI(descriptorValueWinAPI->CharacteristicFormat.Description);
-		descriptorValueWinAPI->CharacteristicFormat.Exponent = inFormat.Exponent;
-		descriptorValueWinAPI->CharacteristicFormat.Format = inFormat.Format;
-		descriptorValueWinAPI->CharacteristicFormat.NameSpace = inFormat.NameSpace;
-		WinBluetoothUUID(inFormat.Unit).ToWinAPI(descriptorValueWinAPI->CharacteristicFormat.Unit);
+		WinBluetoothUUID(inFormat.Description).ToWinAPI(descriptorValueBufferWinAPI->CharacteristicFormat.Description);
+		descriptorValueBufferWinAPI->CharacteristicFormat.Exponent = inFormat.Exponent;
+		descriptorValueBufferWinAPI->CharacteristicFormat.Format = inFormat.Format;
+		descriptorValueBufferWinAPI->CharacteristicFormat.NameSpace = inFormat.NameSpace;
+		WinBluetoothUUID(inFormat.Unit).ToWinAPI(descriptorValueBufferWinAPI->CharacteristicFormat.Unit);
 
 		return true;
 	}
@@ -962,10 +968,10 @@ bool WinBLEGattDescriptorValue::getData(uint8_t **outBuffer, size_t *outBufferSi
 	assert(outBuffer != nullptr);
 	assert(outBufferSize != nullptr);
 
-	if (descriptorValueWinAPI != nullptr)
+	if (descriptorValueBufferWinAPI != nullptr)
 	{
-		*outBuffer = descriptorValueWinAPI->Data;
-		*outBufferSize = (size_t)descriptorValueWinAPI->DataSize;
+		*outBuffer = descriptorValueBufferWinAPI->Data;
+		*outBufferSize = (size_t)descriptorValueBufferWinAPI->DataSize;
 
 		return true;
 	}
@@ -986,12 +992,12 @@ bool WinBLEGattDescriptorValue::setData(const uint8_t *inBuffer, size_t inBuffer
 	// Copy inBuffer into the BTH_LE_GATT_DESCRIPTOR_VALUE data tail buffer
 	if (inBuffer != nullptr && inBufferSize > 0)
 	{
-		descriptorValueWinAPI->DataSize = (ULONG)inBufferSize;
-		memcpy(&descriptorValueWinAPI->Data, inBuffer, inBufferSize);
+		descriptorValueBufferWinAPI->DataSize = (ULONG)inBufferSize;
+		memcpy(&descriptorValueBufferWinAPI->Data, inBuffer, inBufferSize);
 	}
 	else
 	{
-		descriptorValueWinAPI->DataSize = 0;
+		descriptorValueBufferWinAPI->DataSize = 0;
 	}
 
 	// Set the new characteristic value
@@ -1015,27 +1021,27 @@ void WinBLEGattDescriptorValue::ensureTailBufferSize(size_t tail_buffer_size)
 	BTH_LE_GATT_DESCRIPTOR_VALUE *oldDescriptorValueWinAPI= nullptr;
 
 	// If the existing descriptorValue's tail buffer is too small, delete it
-	if (descriptorValueWinAPI != nullptr &&
+	if (descriptorValueBufferWinAPI != nullptr &&
 		tail_buffer_size > maxTailBufferSize)
 	{
-		oldDescriptorValueWinAPI= descriptorValueWinAPI;
-		descriptorValueWinAPI = nullptr;
+		oldDescriptorValueWinAPI= descriptorValueBufferWinAPI;
+		descriptorValueBufferWinAPI = nullptr;
 	}
 
 	// Create a characteristicValueBuffer with a tail buffer that big enough for tail_buffer_size
-	if (descriptorValueWinAPI == nullptr)
+	if (descriptorValueBufferWinAPI == nullptr)
 	{
 		const size_t value_size = WinBLEGattDescriptorValue::getDescriptorValueSize(tail_buffer_size);
 
-		descriptorValueWinAPI = (PBTH_LE_GATT_DESCRIPTOR_VALUE)malloc(value_size);
-		assert(descriptorValueWinAPI != nullptr);
-		memset(descriptorValueWinAPI, 0, value_size);
+		descriptorValueBufferWinAPI = (PBTH_LE_GATT_DESCRIPTOR_VALUE)malloc(value_size);
+		assert(descriptorValueBufferWinAPI != nullptr);
+		memset(descriptorValueBufferWinAPI, 0, value_size);
 
 		// If we had a previous descriptor value
 		// copy over the stuff before the tail buffer
 		if (oldDescriptorValueWinAPI != nullptr)
 		{
-			memcpy(descriptorValueWinAPI, oldDescriptorValueWinAPI, sizeof(BTH_LE_GATT_DESCRIPTOR_VALUE));
+			memcpy(descriptorValueBufferWinAPI, oldDescriptorValueWinAPI, sizeof(BTH_LE_GATT_DESCRIPTOR_VALUE));
 		}
 
 		maxTailBufferSize = tail_buffer_size;

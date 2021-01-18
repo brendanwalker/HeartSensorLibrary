@@ -91,6 +91,7 @@ class WinBLEGattCharacteristicValue : public BLEGattCharacteristicValue
 {
 public:
 	WinBLEGattCharacteristicValue(BLEGattCharacteristic *characteristic);
+	virtual ~WinBLEGattCharacteristicValue();
 	WinBLEGattCharacteristic* getParentCharacteristic() const;
 
 	HANDLE getServiceDeviceHandle() const;
@@ -125,7 +126,8 @@ protected:
 class WinBLEGattDescriptorValue : public BLEGattDescriptorValue
 {
 public:
-	WinBLEGattDescriptorValue(BLEGattDescriptor *descriptor, BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValue);
+	WinBLEGattDescriptorValue(BLEGattDescriptor *descriptor);
+	virtual ~WinBLEGattDescriptorValue();
 	WinBLEGattDescriptor* getParentDescriptor() const;
 
 	HANDLE getServiceDeviceHandle() const;
@@ -153,7 +155,7 @@ protected:
 	static size_t getDescriptorValueSize(size_t tail_buffer_size);
 	void ensureTailBufferSize(size_t tail_buffer_size);
 
-	BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValueWinAPI;
+	BTH_LE_GATT_DESCRIPTOR_VALUE *descriptorValueBufferWinAPI;
 	size_t maxTailBufferSize;
 };
 
