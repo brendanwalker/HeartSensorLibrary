@@ -1,7 +1,8 @@
 #include "HSLClient_CAPI.h"
 #include "ClientConstants.h"
-#include <iostream>
-#include <iomanip>
+
+#include "stdio.h"
+
 #include <chrono>
 #include <cstring>
 
@@ -40,12 +41,12 @@ public:
 			}
 			else
 			{
-				std::cerr << "Failed to startup the HSL Client" << std::endl;
+				fprintf( stderr, "ERROR: Failed to startup the HSL Client\n");
 			}
 		}
 		catch (std::exception& e) 
 		{
-			std::cerr << e.what() << std::endl;
+			fprintf( stderr, "ERROR: %s\n", e.what());
 		}
 
 		// Attempt to shutdown the client
@@ -55,7 +56,7 @@ public:
 		}
 		catch (std::exception& e) 
 		{
-			std::cerr << e.what() << std::endl;
+			fprintf( stderr, "ERROR: %s\n", e.what());
 		}
 	  
 		return 0;
@@ -75,55 +76,27 @@ private:
 				char version_string[32];
 
 				HSL_GetVersionString(version_string, sizeof(version_string));
-				std::cout << "HSLConsoleClient::startup() - Initialized client version - " << version_string << std::endl;
+				printf("HSLConsoleClient::startup() - Initialized client version - %s\n", version_string);
 			}
 			else
 			{
-				std::cout << "HSLConsoleClient::startup() - Failed to initialize the client manager" << std::endl;
+				fprintf(stderr, "HSLConsoleClient::startup() - Failed to initialize the client manager\n");
 				success= false;
-			}
-
-			if (success)
-			{
-				rebuildSensorList();
-			
-				// Register as listener and start stream for each Sensor
-				t_hsl_stream_bitmask data_stream_flags = 0;
-				HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
-				HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_ECGData);
-				HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_AccData);
-
-				t_hrv_filter_bitmask filter_stream_bitmask= 0;
-				
-				if (SensorList.count > 0) 
-				{
-					if (HSL_SetActiveSensorDataStreams(SensorList.Sensors[0].sensorID, data_stream_flags, filter_stream_bitmask) != HSLResult_Success) 
-					{
-						success= false;
-					}
-				}
-				else 
-				{
-					std::cout << "HSLConsoleClient::startup() - No Sensors found. Waiting..." << std::endl;
-				}
 			}
 		}
 
 		if (success)
 		{
-			last_report_fps_timestamp= 
-				std::chrono::duration_cast< std::chrono::milliseconds >( 
-					std::chrono::system_clock::now().time_since_epoch() );
+			lastHRDataTimestamp= 0.0;
+			lastPPGDataTimestamp= 0.0;
+			lastAccDataTimestamp= 0.0;
 		}
 
 		return success;
 	}
 
 	void update()
-	{
-		std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-		std::chrono::milliseconds diff= now - last_report_fps_timestamp;
-		
+	{	
 		// Polls events and updates Sensor state
 		if (HSL_Update() != HSLResult_Success)
 		{
@@ -137,11 +110,10 @@ private:
 			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
 			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_ECGData);
 			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_AccData);
+			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPGData);
+			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPIData);
 
 			t_hrv_filter_bitmask filter_stream_bitmask = 0;
-
-			// Stop all Sensor streams
-			HSL_StopAllSensorDataStreams(SensorList.Sensors[0].sensorID);
 
 			// Get the current Sensor list
 			rebuildSensorList();
@@ -156,7 +128,7 @@ private:
 			}
 			else 
 			{
-				std::cout << "HSLConsoleClient::startup() - No Sensors found. Waiting..." << std::endl;
+				printf("HSLConsoleClient::startup() - No Sensors found. Waiting...");
 			}
 		}
 
@@ -164,39 +136,76 @@ private:
 		if (m_keepRunning && SensorList.count > 0)
 		{
 			HSLSensorID sensorID= SensorList.Sensors[0].sensorID;      
-			HSLBufferIterator iter;
 
-			std::cout << "Sensor 0 (HR ECG AccXYZ):  ";
+			//for (HSLBufferIterator iter= HSL_GetHeartRateBuffer(sensorID); 
+			//	HSL_IsBufferIteratorValid(&iter);
+			//	HSL_BufferIteratorNext(&iter))
+			//{
+			//	HSLHeartRateFrame* hrFrame= HSL_BufferIteratorGetHRData(&iter);
 
-			if (HSL_GetHeartRateBuffer(sensorID, &iter) == HSLResult_Success)
+			//	if (hrFrame->timeInSeconds > lastHRDataTimestamp)
+			//	{
+			//		printf("[HR:%fs] %dBPM\n", hrFrame->timeInSeconds, hrFrame->beatsPerMinute);
+			//		lastHRDataTimestamp= hrFrame->timeInSeconds;
+			//	}
+			//}
+
+			//for (HSLBufferIterator iter = HSL_GetHeartPPGBuffer(sensorID);
+			//	 HSL_IsBufferIteratorValid(&iter);
+			//	 HSL_BufferIteratorNext(&iter))
+			//{
+			//	HSLHeartPPGFrame* ppgFrame = HSL_BufferIteratorGetPPGData(&iter);
+
+			//	if (ppgFrame->timeInSeconds > lastPPGDataTimestamp)
+			//	{
+			//		printf("[PPG: %fs]\n", ppgFrame->timeInSeconds);
+			//		for (int sample_index = 0; sample_index < ppgFrame->ppgSampleCount; ++sample_index)
+			//		{
+			//			const HSLHeartPPGSample& ppgSample = ppgFrame->ppgSamples[sample_index];
+
+			//			printf("    [0:%d, 1:%d, 2:%d], amb:%d\n",
+			//				   ppgSample.ppgValue0, ppgSample.ppgValue1, ppgSample.ppgValue2, ppgSample.ambient);
+			//		}
+
+			//		lastPPGDataTimestamp= ppgFrame->timeInSeconds;
+			//	}
+			//}
+
+			for (HSLBufferIterator iter = HSL_GetHeartPPIBuffer(sensorID);
+				 HSL_IsBufferIteratorValid(&iter);
+				 HSL_BufferIteratorNext(&iter))
 			{
-				HSLHeartRateFrame* hrFrame= HSL_BufferIteratorGetHRData(&iter);
+				HSLHeartPPIFrame* ppiFrame = HSL_BufferIteratorGetPPIData(&iter);
 
-				std::cout << std::setw(12) << std::right << std::setprecision(6) << hrFrame->beatsPerMinute;
-			}
-
-			if (HSL_GetHeartECGBuffer(sensorID, &iter) == HSLResult_Success)
-			{
-				HSLHeartECGFrame* ecgFrame= HSL_BufferIteratorGetECGData(&iter);
-
-				std::cout << std::setw(12) << std::right << std::setprecision(6) << ecgFrame->ecgValues[0];
-			}
-
-			if (HSL_GetHeartAccBuffer(sensorID, &iter) == HSLResult_Success)
-			{
-				HSLAccelerometerFrame* accFrame= HSL_BufferIteratorGetAccData(&iter);
-
-				if (accFrame != nullptr)
+				printf("[PPI: %fs]\n", ppiFrame->timeInSeconds);
+				for (int sample_index = 0; sample_index < ppiFrame->ppiSampleCount; ++sample_index)
 				{
-					HSLVector3f acc= accFrame->accSamples[0];
+					const HSLHeartPPISample& ppiSample = ppiFrame->ppiSamples[sample_index];
 
-					std::cout << std::setw(12) << std::right << std::setprecision(6) << acc.x;
-					std::cout << std::setw(12) << std::right << std::setprecision(6) << acc.y;
-					std::cout << std::setw(12) << std::right << std::setprecision(6) << acc.z;
+					printf("    BPM:%d, Dur:%d(ms), Err:%d(ms)\n",
+							ppiSample.beatsPerMinute, ppiSample.pulseDuration, ppiSample.pulseDurationErrorEst);
 				}
 			}
-			   
-			std::cout << std::endl;
+
+			//for (HSLBufferIterator iter = HSL_GetHeartAccBuffer(sensorID);
+			//	 HSL_IsBufferIteratorValid(&iter);
+			//	 HSL_BufferIteratorNext(&iter))
+			//{
+			//	HSLAccelerometerFrame* accFrame = HSL_BufferIteratorGetAccData(&iter);
+
+			//	if (accFrame->timeInSeconds > lastAccDataTimestamp)
+			//	{
+			//		printf("[ACC: %fs]\n", accFrame->timeInSeconds);
+			//		for (int sample_index = 0; sample_index < accFrame->accSampleCount; ++sample_index)
+			//		{
+			//			const HSLVector3f& accSample = accFrame->accSamples[sample_index];
+
+			//			printf("    [0:%.2f, 1:%.2f, 2:%.2f]\n", accSample.x, accSample.y, accSample.z);
+			//		}
+
+			//		lastAccDataTimestamp= accFrame->timeInSeconds;
+			//	}
+			//}
 		}
 	}
 
@@ -205,7 +214,6 @@ private:
 		if (SensorList.count > 0)
 		{
 			HSL_StopAllSensorDataStreams(SensorList.Sensors[0].sensorID);
-			HSL_FreeSensorListener(SensorList.Sensors[0].sensorID);
 		}
 		// No tracker data streams started
 		// No HMD data streams started
@@ -218,17 +226,18 @@ private:
 		memset(&SensorList, 0, sizeof(HSLSensorList));
 		HSL_GetSensorList(&SensorList);
 
-		std::cout << "Found " << SensorList.count << " Sensors." << std::endl;
-
+		printf("Found %d Sensors.\n", SensorList.count);
 		for (int sensor_index=0; sensor_index<SensorList.count; ++sensor_index) 
 		{
-			std::cout << "  Sensor ID: " << SensorList.Sensors[sensor_index].deviceFriendlyName << std::endl;
+			printf("  Sensor ID: %s\n", SensorList.Sensors[sensor_index].deviceFriendlyName);
 		}
 	}
 
 private:
 	bool m_keepRunning;
-	std::chrono::milliseconds last_report_fps_timestamp;
+	double lastHRDataTimestamp;
+	double lastPPGDataTimestamp;
+	double lastAccDataTimestamp;
 	HSLSensorList SensorList;
 };
 

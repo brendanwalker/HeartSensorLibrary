@@ -83,7 +83,7 @@ bool HSLClient::startup(
 	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
 	for (HSLSensorID sensor_id= 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)		
 	{
-		m_clientSensors[sensor_id].sensor.sensorID= sensor_id;
+		setup_client_sensor_state(sensor_id);
 	}
 	
 	return success;
@@ -126,12 +126,15 @@ bool HSLClient::poll_next_message(HSLEventMessage *message)
 
 void HSLClient::shutdown()
 {
+	// Zero out all client sensor state
+	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
+
 	// Drop an unread messages from the previous call to update
 	m_message_queue.clear();
 }
 
 // -- ClientHSLAPI Requests -----
-bool HSLClient::allocate_sensor_listener(HSLSensorID sensor_id)
+bool HSLClient::setup_client_sensor_state(HSLSensorID sensor_id)
 {
 	bool bSuccess= false;
 
@@ -140,50 +143,28 @@ bool HSLClient::allocate_sensor_listener(HSLSensorID sensor_id)
 		HSLClentSensorState &clientSensorState = m_clientSensors[sensor_id];
 		HSLSensor &sensor = clientSensorState.sensor;
 
-		if (sensor.listenerCount == 0)
+		ServerSensorView *sensor_view= m_requestHandler->get_sensor_view_or_null(sensor_id);
+
+		memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
+		sensor.sensorID = sensor_id;
+
+		clientSensorState.heartAccBuffer = sensor_view->getHeartAccBuffer();
+		clientSensorState.heartECGBuffer = sensor_view->getHeartECGBuffer();
+		clientSensorState.heartPPGBuffer = sensor_view->getHeartPPGBuffer();
+		clientSensorState.heartPPIBuffer = sensor_view->getHeartPPIBuffer();
+		clientSensorState.heartRateBuffer = sensor_view->getHeartRateBuffer();
+
+		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
-			ServerSensorView *sensor_view= m_requestHandler->get_sensor_view_or_null(sensor_id);
+			HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
 
-			memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
-			sensor.sensorID = sensor_id;
-
-			clientSensorState.heartAccBuffer = sensor_view->getHeartAccBuffer();
-			clientSensorState.heartECGBuffer = sensor_view->getHeartECGBuffer();
-			clientSensorState.heartPPGBuffer = sensor_view->getHeartPPGBuffer();
-			clientSensorState.heartPPIBuffer = sensor_view->getHeartPPIBuffer();
-			clientSensorState.heartRateBuffer = sensor_view->getHeartRateBuffer();
-
-			for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
-			{
-				HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
-
-				clientSensorState.hrvFilters[filter_index].hrvBuffer = sensor_view->getHeartHrvBuffer(filter);
-			}
+			clientSensorState.hrvFilters[filter_index].hrvBuffer = sensor_view->getHeartHrvBuffer(filter);
 		}
 
-		++sensor.listenerCount;
 		bSuccess = true;
 	}
 		
 	return bSuccess;
-}
-
-void HSLClient::free_sensor_listener(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		HSLClentSensorState &clientSensorState= m_clientSensors[sensor_id];
-		HSLSensor &sensor= clientSensorState.sensor;
-
-		assert(sensor.listenerCount > 0);
-		--sensor.listenerCount;
-
-		if (sensor.listenerCount <= 0)
-		{
-			memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
-			sensor.sensorID= sensor_id;
-		}
-	}
 }
 
 HSLSensor* HSLClient::get_sensor_view(HSLSensorID sensor_id)
@@ -191,152 +172,114 @@ HSLSensor* HSLClient::get_sensor_view(HSLSensorID sensor_id)
 	return IS_VALID_SENSOR_INDEX(sensor_id) ? &m_clientSensors[sensor_id].sensor : nullptr;
 }
 
-bool HSLClient::getHeartRateBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+template <typename t_buffer_type>
+void init_buffer_iterator(
+	HSLSensorBufferType buffer_type, 
+	CircularBuffer<t_buffer_type> *circular_buffer, 
+	HSLBufferIterator *out_iterator)
 {
-	assert(out_iterator != nullptr);
+	memset(out_iterator, 0, sizeof(HSLBufferIterator));
+	out_iterator->bufferType= buffer_type;
+	out_iterator->stride = sizeof(t_buffer_type);
+
+	if (circular_buffer != nullptr)
+	{
+		out_iterator->buffer = circular_buffer->getBuffer();
+		out_iterator->bufferCapacity = circular_buffer->getCapacity();
+		out_iterator->remaining = circular_buffer->getSize();
+		out_iterator->currentIndex = circular_buffer->getReadIndex();
+		out_iterator->endIndex = circular_buffer->getWriteIndex();
+	}
+}
+
+HSLBufferIterator HSLClient::getHeartRateBuffer(HSLSensorID sensor_id)
+{
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLHeartRateFrame> *heartRateBuffer = m_clientSensors[sensor_id].heartRateBuffer;
 
-		if (heartRateBuffer != nullptr && heartRateBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_HRData;
-			out_iterator->buffer = heartRateBuffer->getBuffer();
-			out_iterator->startIndex = (int)heartRateBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)heartRateBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLHeartRateFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_HRData, heartRateBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
-bool HSLClient::getHeartECGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSLClient::getHeartECGBuffer(HSLSensorID sensor_id)
 {
-	assert(out_iterator != nullptr);
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLHeartECGFrame> *heartECGBuffer = m_clientSensors[sensor_id].heartECGBuffer;
 		
-		if (heartECGBuffer != nullptr && heartECGBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_ECGData;
-			out_iterator->buffer = heartECGBuffer->getBuffer();
-			out_iterator->startIndex = (int)heartECGBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)heartECGBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLHeartECGFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_ECGData, heartECGBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
-bool HSLClient::getHeartPPGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSLClient::getHeartPPGBuffer(HSLSensorID sensor_id)
 {
-	assert(out_iterator != nullptr);
-
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer = m_clientSensors[sensor_id].heartPPGBuffer;
 
-		if (heartPPGBuffer != nullptr && heartPPGBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_PPGData;
-			out_iterator->buffer = heartPPGBuffer->getBuffer();
-			out_iterator->startIndex = (int)heartPPGBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)heartPPGBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLHeartPPGFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_PPGData, heartPPGBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
-bool HSLClient::getHeartPPIBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSLClient::getHeartPPIBuffer(HSLSensorID sensor_id)
 {
-	assert(out_iterator != nullptr);
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer = m_clientSensors[sensor_id].heartPPIBuffer;
 
-		if (heartPPIBuffer != nullptr && heartPPIBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_PPIData;
-			out_iterator->buffer = heartPPIBuffer->getBuffer();
-			out_iterator->startIndex = (int)heartPPIBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)heartPPIBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLHeartPPIFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_PPIData, heartPPIBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
-bool HSLClient::getHeartAccBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSLClient::getHeartAccBuffer(HSLSensorID sensor_id)
 {
-	assert(out_iterator != nullptr);
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer = m_clientSensors[sensor_id].heartAccBuffer;
 
-		if (heartAccBuffer != nullptr && heartAccBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_AccData;
-			out_iterator->buffer = heartAccBuffer->getBuffer();
-			out_iterator->startIndex = (int)heartAccBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)heartAccBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLAccelerometerFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_AccData, heartAccBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
-bool HSLClient::getHeartHrvBuffer(
-	HSLSensorID sensor_id,
-	HSLHeartRateVariabityFilterType filter,
-	HSLBufferIterator *out_iterator)
+HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter)
 {
-	assert(out_iterator != nullptr);
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		CircularBuffer<HSLHeartVariabilityFrame> *hrvBuffer = m_clientSensors[sensor_id].hrvFilters[filter].hrvBuffer;
 
-		if (hrvBuffer != nullptr && hrvBuffer->getSize() > 0)
-		{
-			out_iterator->bufferType = HSLBufferType_HRVData;
-			out_iterator->buffer = hrvBuffer->getBuffer();
-			out_iterator->startIndex = (int)hrvBuffer->getHeadIndex();
-			out_iterator->endIndex = (int)hrvBuffer->getTailIndex();
-			out_iterator->stride = sizeof(HSLHeartVariabilityFrame);
-			out_iterator->currentIndex = out_iterator->startIndex;
-
-			return true;
-		}
+		init_buffer_iterator(HSLBufferType_HRVData, hrvBuffer, &iter);
 	}
 
-	return false;
+	return iter;
 }
 
 // INotificationListener

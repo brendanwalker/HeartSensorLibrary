@@ -121,7 +121,7 @@ typedef struct
 
 typedef struct
 {
-	uint16_t				ecgValues[10];		// microvolts
+	uint32_t				ecgValues[10];		// microvolts
 	uint16_t				ecgValueCount;
 	double					timeInSeconds;
 } HSLHeartECGFrame;
@@ -129,10 +129,10 @@ typedef struct
 // https://www.polar.com/blog/optical-heart-rate-tracking-polar/
 typedef struct
 {
-    uint16_t				ppgValue0;
-    uint16_t				ppgValue1;
-    uint16_t				ppgValue2;
-    uint16_t				ambient;
+    uint32_t				ppgValue0;
+    uint32_t				ppgValue1;
+    uint32_t				ppgValue2;
+    uint32_t				ambient;
 } HSLHeartPPGSample;
 
 typedef struct
@@ -144,10 +144,18 @@ typedef struct
 
 typedef struct
 {
-	HSLContactSensorStatus	contactStatus;
-	int						beatsPerMinute;
-	float					pulseDuration;			// milliseconds
-	float					pulseDurationErrorEst;	// milliseconds
+	uint8_t					beatsPerMinute;
+	uint16_t				pulseDuration;			// milliseconds
+	uint16_t				pulseDurationErrorEst;	// milliseconds
+	uint8_t					blockerBit : 1;
+	uint8_t					skinContactBit : 1;
+	uint8_t					supportsSkinContactBit : 1;
+} HSLHeartPPISample;
+
+typedef struct
+{
+	HSLHeartPPISample		ppiSamples[10];
+	uint16_t				ppiSampleCount;
 	double					timeInSeconds;
 } HSLHeartPPIFrame;
 
@@ -195,23 +203,19 @@ typedef struct
 	int						inputSequenceNum;
 	long long				dataFrameLastReceivedTime;
 	float					dataFrameAverageFPS;
-	int						listenerCount;
 	bool					isValid;
 	bool					isConnected;
 } HSLSensor;
 
 typedef struct 
 {
-	// Buffer Properties
 	HSLSensorBufferType bufferType;
 	void *buffer;
-	size_t bufferSize;
+	size_t bufferCapacity;
 	size_t stride;
-	int startIndex;
-	int endIndex;
-
-	// Buffer Index
-	int currentIndex;
+	size_t currentIndex;
+	size_t endIndex;
+	size_t remaining;
 } HSLBufferIterator;
 
 // Service Events
@@ -237,7 +241,7 @@ typedef struct
 	char version_string[HSLSERVICE_MAX_VERSION_STRING_LEN];
 } HSLServiceVersion;
 
-/// List of Sensors attached to PSMoveService
+/// List of Sensors attached to HSLService
 typedef struct
 {
 	char host_serial[HSLSERVICE_SENSOR_SERIAL_LEN];
@@ -333,25 +337,21 @@ HSL_PUBLIC_FUNCTION(HSLResult) HSL_PollNextMessage(HSLEventMessage *out_message,
  */
 HSL_PUBLIC_FUNCTION(HSLSensor *) HSL_GetSensor(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartRateBuffer(
-	HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartRateBuffer(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartECGBuffer(
-	HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartECGBuffer(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartPPGBuffer(
-	HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartPPGBuffer(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartPPIBuffer(
-	HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartPPIBuffer(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartAccBuffer(
-	HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartAccBuffer(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetHeartHrvBuffer(
-	HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter, HSLBufferIterator *out_iterator);
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_IsBufferIteratorValid(HSLBufferIterator *iterator);
+
+HSL_PUBLIC_FUNCTION(void) HSL_BufferIteratorReset(HSLBufferIterator* iterator);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_BufferIteratorNext(HSLBufferIterator *iterator);
 
@@ -361,22 +361,6 @@ HSL_PUBLIC_FUNCTION(HSLHeartPPGFrame *) HSL_BufferIteratorGetPPGData(HSLBufferIt
 HSL_PUBLIC_FUNCTION(HSLHeartPPIFrame *) HSL_BufferIteratorGetPPIData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLAccelerometerFrame *) HSL_BufferIteratorGetAccData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartVariabilityFrame *) HSL_BufferIteratorGetHRVData(HSLBufferIterator *iterator);
-
-/** \brief Allocate a reference to a Sensor.
-	This function tells the client API to increment a reference count for a given Sensor.
-	This function should be called before fetching the Sensor data using \ref HSL_GetSensor.
-	When done with the Sensor, make sure to call \ref HSL_FreeSensorListener.
-	\param sensor_ The id of the Sensor we want to allocate a listener for
-	\return PSMResult_Success if a valid Sensor id is given
- */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_AllocateSensorListener(HSLSensorID sensor_id);
-
-/** \brief Free a reference to a Sensor
-	This function tells the client API to decrement a reference count for a given Sensor.
-	\param sensor_ The of of the Sensor we want to free the listener for.
-	\return PSMResult_Success if a valid Sensor id is given that has a non-zero ref count
- */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_FreeSensorListener(HSLSensorID sensor_id);
 
 // Sensor Requests
 /** \brief Requests a list of the streamable Sensors currently connected to HSLService.

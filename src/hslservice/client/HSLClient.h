@@ -30,20 +30,17 @@ public:
 	void shutdown();
 
 	// -- Client HSL API Requests -----
-	bool allocate_sensor_listener(HSLSensorID sensor_id);
-	void free_sensor_listener(HSLSensorID sensor_id);   
 	HSLSensor* get_sensor_view(HSLSensorID sensor_id);
-	bool getHeartRateBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
-	bool getHeartECGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
-	bool getHeartPPGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
-	bool getHeartPPIBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
-	bool getHeartAccBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator);
-	bool getHeartHrvBuffer(
-		HSLSensorID sensor_id,
-		HSLHeartRateVariabityFilterType filter,
-		HSLBufferIterator *out_iterator);
+	HSLBufferIterator getHeartRateBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getHeartECGBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getHeartPPGBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getHeartPPIBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getHeartAccBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 		
 protected:
+	bool setup_client_sensor_state(HSLSensorID sensor_id);
+
 	// INotificationListener
 	virtual void handle_notification(const HSLEventMessage &response) override;
 

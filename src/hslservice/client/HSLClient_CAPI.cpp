@@ -142,14 +142,14 @@ HSLResult HSL_UpdateNoPollEvents()
 
 		if (g_HSL_service != nullptr)
 		{
-			g_HSL_service->update();
-
 			if (g_HSL_client != nullptr)
 			{
 				g_HSL_client->update();
 
-				result= HSLResult_Success;
+				result = HSLResult_Success;
 			}
+
+			g_HSL_service->update();
 		}	
 
 		return result;
@@ -173,69 +173,82 @@ HSLSensor *HSL_GetSensor(HSLSensorID sensor_id)
 		return nullptr;
 }
 
-HSLResult HSL_GetHeartRateBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+static HSLBufferIterator CreateInvalidIterator()
 {
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartRateBuffer(sensor_id, out_iterator) ? HSLResult_Success : HSLResult_Error;
-	else
-		return HSLResult_Error;
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
+	return iter;
 }
 
-HSLResult HSL_GetHeartECGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSL_GetHeartRateBuffer(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartECGBuffer(sensor_id, out_iterator) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->getHeartRateBuffer(sensor_id);
 	else
-		return HSLResult_Error;
+		return CreateInvalidIterator();
 }
 
-HSLResult HSL_GetHeartPPGBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSL_GetHeartECGBuffer(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartPPGBuffer(sensor_id, out_iterator) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->getHeartECGBuffer(sensor_id);
 	else
-		return HSLResult_Error;
+		return CreateInvalidIterator();
 }
 
-HSLResult HSL_GetHeartPPIBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSL_GetHeartPPGBuffer(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartPPIBuffer(sensor_id, out_iterator) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->getHeartPPGBuffer(sensor_id);
 	else
-		return HSLResult_Error;
+		return CreateInvalidIterator();
 }
 
-HSLResult HSL_GetHeartAccBuffer(HSLSensorID sensor_id, HSLBufferIterator *out_iterator)
+HSLBufferIterator HSL_GetHeartPPIBuffer(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartAccBuffer(sensor_id, out_iterator) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->getHeartPPIBuffer(sensor_id);
 	else
-		return HSLResult_Error;
+		return CreateInvalidIterator();
 }
 
-HSLResult HSL_GetHeartHrvBuffer(
+HSLBufferIterator HSL_GetHeartAccBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->getHeartAccBuffer(sensor_id);
+	else
+		return CreateInvalidIterator();
+}
+
+HSLBufferIterator HSL_GetHeartHrvBuffer(
 	HSLSensorID sensor_id,
-	HSLHeartRateVariabityFilterType filter,
-	HSLBufferIterator *out_iterator)
+	HSLHeartRateVariabityFilterType filter)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartHrvBuffer(sensor_id, filter, out_iterator) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->getHeartHrvBuffer(sensor_id, filter);
 	else
-		return HSLResult_Error;
+		return CreateInvalidIterator();
 }
 
 bool HSL_IsBufferIteratorValid(HSLBufferIterator *iterator)
 {
-	return iterator != nullptr && iterator->currentIndex != iterator->endIndex;
+	return iterator != nullptr && iterator->remaining > 0;
+}
+
+void HSL_BufferIteratorReset(HSLBufferIterator* iterator)
+{
+	assert (iterator != nullptr);
+	memset(iterator, 0, sizeof(HSLBufferIterator));
 }
 
 bool HSL_BufferIteratorNext(HSLBufferIterator *iterator)
 {
 	if (HSL_IsBufferIteratorValid(iterator))
 	{
-		const size_t total_elems = iterator->bufferSize / iterator->stride;
-
-		iterator->currentIndex = (iterator->currentIndex + 1) % total_elems;
+		assert(iterator->remaining > 0);
+		assert(iterator->bufferCapacity > 0);
+		iterator->currentIndex = (iterator->currentIndex + 1) % iterator->bufferCapacity;
+		--iterator->remaining;
 	}
 
 	return false;
@@ -300,28 +313,6 @@ HSLHeartVariabilityFrame* HSL_BufferIteratorGetHRVData(HSLBufferIterator* iterat
         (iterator->bufferType == HSLBufferType_HRVData)
         ? (HSLHeartVariabilityFrame*)HSL_BufferIteratorGetValueRaw(iterator)
         : nullptr;
-}
-
-HSLResult HSL_AllocateSensorListener(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->allocate_sensor_listener(sensor_id) ? HSLResult_Success : HSLResult_Error;
-	else
-		return HSLResult_Error;
-}
-
-HSLResult HSL_FreeSensorListener(HSLSensorID sensor_id)
-{
-		HSLResult result= HSLResult_Error;
-
-		if (g_HSL_client != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
-		{
-		g_HSL_client->free_sensor_listener(sensor_id);
-
-				result= HSLResult_Success;
-		}
-
-		return result;
 }
 
 /// Sensor Requests
