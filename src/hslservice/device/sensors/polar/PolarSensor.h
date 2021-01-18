@@ -1,19 +1,19 @@
-#ifndef POLAR_H10_SENSOR_H
-#define POLAR_H10_SENSOR_H
+#ifndef POLAR_SENSOR_H
+#define POLAR_SENSOR_H
 
-#include "HSLConfig.h"
 #include "HSLClient_CAPI.h"
 #include "BluetoothLEApiInterface.h"
 #include "DeviceEnumerator.h"
 #include "DeviceInterface.h"
 #include "MathUtility.h"
+#include "PolarSensorConfig.h"
 
 #include <string>
 #include <array>
 #include <deque>
 #include <chrono>
 
-struct PolarH10BluetoothLEDetails 
+struct PolarBluetoothLEDetails 
 {
 	std::string friendlyName;
     std::string devicePath;
@@ -26,36 +26,13 @@ struct PolarH10BluetoothLEDetails
 	void reset();
 };
 
-class PolarH10SensorConfig : public HSLConfig
-{
-public:
-    static const int CONFIG_VERSION;
-
-	PolarH10SensorConfig(const std::string &fnamebase = "PolarH10SensorConfig");
-
-    virtual const configuru::Config writeToJSON();
-    virtual void readFromJSON(const configuru::Config &pt);
-
-	static int sanitizeSampleRate(int test_sample_rate, const int *sample_rate_array);
-
-    bool isValid;
-    long version;
-
-	float sampleHistoryDuration;
-	int hrvHistorySize;
-
-	int accSampleRate;
-	int ecgSampleRate;
-	int hrSampleRate;
-};
-
-class PolarH10Sensor : public ISensorInterface {
+class PolarSensor : public ISensorInterface {
 public:
 	static const char *k_szFriendlyName;
-	static IDeviceInterface *PolarH10SensorFactory();
+	static IDeviceInterface *PolarSensorFactory();
 
-	PolarH10Sensor();
-	virtual ~PolarH10Sensor();
+	PolarSensor();
+	virtual ~PolarSensor();
 
 	// PSMoveController
 	bool open(); // Opens the first BluetoothLE device for the sensor
@@ -82,11 +59,11 @@ public:
 	virtual void setHeartRateVariabliyHistorySize(int sample_count) override;
 
     // -- Getters
-    inline const PolarH10SensorConfig *getConfig() const
+    inline const PolarSensorConfig *getConfig() const
     { return &m_config; }    
     
     // -- Setters
-	void setConfig(const PolarH10SensorConfig *config);
+	void setConfig(const PolarSensorConfig *config);
 	void setSensorListener(ISensorListener *listener) override;
 
 private:       
@@ -94,11 +71,11 @@ private:
 	bool fetchDeviceInformation();
 
 	// Constant while a sensor is open
-    PolarH10SensorConfig m_config;
-    PolarH10BluetoothLEDetails m_bluetoothLEDetails;
+    PolarSensorConfig m_config;
+    PolarBluetoothLEDetails m_bluetoothLEDetails;
 
     // HID Packet Processing
-	class PolarH10PacketProcessor* m_packetProcessor;
+	class PolarPacketProcessor* m_packetProcessor;
 	ISensorListener* m_sensorListener;
 };
 #endif // POLAR_H10_SENSOR_H
