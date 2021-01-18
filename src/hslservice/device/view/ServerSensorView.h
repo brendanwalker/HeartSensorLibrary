@@ -10,6 +10,7 @@
 #include "readerwriterqueue.h" // lockfree queue
 
 #include <array>
+#include <mutex>
 
 // -- declarations -----
 class ServerSensorView : public ServerDeviceView, public ISensorListener
@@ -60,6 +61,8 @@ protected:
 	bool allocate_device_interface(const class DeviceEnumerator *enumerator) override;
 	void free_device_interface() override;
 
+	void adjustSampleBufferCapacities();
+
 private:
 	// Device State
 	ISensorInterface *m_device;
@@ -71,6 +74,7 @@ private:
 	bool m_bIsLastSensorDataTimestampValid;
 
 	// Filter State (Shared)
+	mutable std::mutex m_sensorPacketWriteMutex;
 	moodycamel::ReaderWriterQueue<ISensorListener::SensorPacket> m_sensorPacketQueue;
 
 	// Filter State (Main Thread)

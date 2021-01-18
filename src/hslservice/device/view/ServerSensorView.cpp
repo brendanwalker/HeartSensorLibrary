@@ -25,20 +25,30 @@ ServerSensorView::ServerSensorView(const int device_id)
 	, m_activeFilterBitmask(0)
 	, m_bIsLastSensorDataTimestampValid(false)
 	, m_bIsLastFilterUpdateTimestampValid(false)
-	, heartRateBuffer(nullptr)
-	, heartECGBuffer(nullptr)
-	, heartPPGBuffer(nullptr)
-	, heartPPIBuffer(nullptr)
-	, heartAccBuffer(nullptr)
+	, heartRateBuffer(new CircularBuffer<HSLHeartRateFrame>(10))
+	, heartECGBuffer(new CircularBuffer<HSLHeartECGFrame>(10))
+	, heartPPGBuffer(new CircularBuffer<HSLHeartPPGFrame>(10))
+	, heartPPIBuffer(new CircularBuffer<HSLHeartPPIFrame>(10))
+	, heartAccBuffer(new CircularBuffer<HSLAccelerometerFrame>(10))
 {
-	for (int hrv_filter_index = 0; hrv_filter_index < HRVFilter_COUNT; ++hrv_filter_index)
+	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 	{
-		hrvFilters[hrv_filter_index].hrvBuffer= nullptr;
+		hrvFilters[filter_index].hrvBuffer = new CircularBuffer<HSLHeartVariabilityFrame>(10);
 	}
 }
 
 ServerSensorView::~ServerSensorView()
 {
+	delete heartRateBuffer;
+	delete heartECGBuffer;
+	delete heartPPGBuffer;
+	delete heartPPIBuffer;
+	delete heartAccBuffer;
+
+	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
+	{
+		delete hrvFilters[filter_index].hrvBuffer;
+	}
 }
 
 bool ServerSensorView::allocate_device_interface(
@@ -82,107 +92,77 @@ bool ServerSensorView::open(const class DeviceEnumerator *enumerator)
 	{
 		m_friendlyName= m_device->getFriendlyName();
 
-		// Allocate data buffers based on device capabilities
-		float sample_history_duration = m_device->getSampleHistoryDuration();
-		t_hsl_stream_bitmask caps_bitmask= m_device->getSensorCapabilities();
-
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_HRData))
-		{
-			int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_HRData);
-			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-			heartRateBuffer = new CircularBuffer<HSLHeartRateFrame>(samples_needed);
-		}
-
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData))
-		{
-			int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_ECGData);
-			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-			heartECGBuffer = new CircularBuffer<HSLHeartECGFrame>(samples_needed);
-		}
-
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPGData))
-		{
-			int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPGData);
-			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-			heartPPGBuffer = new CircularBuffer<HSLHeartPPGFrame>(samples_needed);
-		}
-
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
-		{
-			int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPIData);
-			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-			heartPPIBuffer = new CircularBuffer<HSLHeartPPIFrame>(samples_needed);
-		}
-
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_AccData))
-		{
-			int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_AccData);
-			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-			heartAccBuffer = new CircularBuffer<HSLAccelerometerFrame>(samples_needed);
-		}
-
-		// We can compute HRV statistics if we either have ECG data or PPI data
-		if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData) ||
-			HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
-		{
-			int hrv_samples_needed = m_device->getHeartRateVariabliyHistorySize();
-
-			for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
-			{
-				hrvFilters[filter_index].hrvBuffer = new CircularBuffer<HSLHeartVariabilityFrame>(hrv_samples_needed);
-			}
-		}
+		// Resize buffers to match requested sample frequency and history duration
+		adjustSampleBufferCapacities();
 	}
 
 	return bSuccess;
 }
 
-void ServerSensorView::close()
+void ServerSensorView::adjustSampleBufferCapacities()
 {
-	if (heartRateBuffer != nullptr)
+	if (m_device == nullptr)
+		return;
+
+	// Allocate data buffers based on device capabilities
+	float sample_history_duration = m_device->getSampleHistoryDuration();
+	t_hsl_stream_bitmask caps_bitmask = m_device->getSensorCapabilities();
+
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_HRData))
 	{
-		delete heartRateBuffer;
-		heartRateBuffer = nullptr;
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_HRData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		heartRateBuffer->setCapacity(samples_needed);
 	}
 
-	if (heartECGBuffer != nullptr)
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData))
 	{
-		delete heartECGBuffer;
-		heartECGBuffer = nullptr;
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_ECGData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		heartECGBuffer->setCapacity(samples_needed);
 	}
 
-	if (heartPPGBuffer != nullptr)
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPGData))
 	{
-		delete heartPPGBuffer;
-		heartPPGBuffer = nullptr;
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPGData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		heartPPGBuffer->setCapacity(samples_needed);
 	}
 
-	if (heartPPIBuffer != nullptr)
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
 	{
-		delete heartPPIBuffer;
-		heartPPIBuffer = nullptr;
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPIData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		heartPPIBuffer->setCapacity(samples_needed);
 	}
 
-	if (heartAccBuffer != nullptr)
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_AccData))
 	{
-		delete heartAccBuffer;
-		heartAccBuffer = nullptr;
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_AccData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		heartAccBuffer->setCapacity(samples_needed);
 	}
 
-	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
+	// We can compute HRV statistics if we either have ECG data or PPI data
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData) ||
+		HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
 	{
-		if (hrvFilters[filter_index].hrvBuffer != nullptr)
+		int hrv_samples_needed = m_device->getHeartRateVariabliyHistorySize();
+
+		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
-			delete hrvFilters[filter_index].hrvBuffer;
-			hrvFilters[filter_index].hrvBuffer = nullptr;
+			hrvFilters[filter_index].hrvBuffer->setCapacity(hrv_samples_needed);
 		}
 	}
+}
 
+void ServerSensorView::close()
+{
 	ServerDeviceView::close();
 }
 
@@ -216,7 +196,11 @@ void ServerSensorView::notifySensorDataReceived(const ISensorListener::SensorPac
 	m_lastSensorDataTimestamp= now;
 	m_bIsLastSensorDataTimestampValid= true;
 
-	m_sensorPacketQueue.enqueue(*sensor_packet);
+	{
+		std::lock_guard<std::mutex> write_lock(m_sensorPacketWriteMutex);
+
+		m_sensorPacketQueue.enqueue(*sensor_packet);
+	}
 }
 
 // Update Pose Filter using update packets from the tracker and IMU threads
@@ -229,19 +213,19 @@ void ServerSensorView::processDevicePacketQueues()
 		switch (packet.payloadType)
 		{
 		case ISensorListener::SensorPacketPayloadType::ACCFrame:
-			heartAccBuffer->pushHead(packet.payload.accFrame);
+			heartAccBuffer->writeItem(packet.payload.accFrame);
 			break;
 		case ISensorListener::SensorPacketPayloadType::ECGFrame:
-			heartECGBuffer->pushHead(packet.payload.ecgFrame);
+			heartECGBuffer->writeItem(packet.payload.ecgFrame);
 			break;
 		case ISensorListener::SensorPacketPayloadType::HRFrame:
-			heartRateBuffer->pushHead(packet.payload.hrFrame);
+			heartRateBuffer->writeItem(packet.payload.hrFrame);
 			break;
 		case ISensorListener::SensorPacketPayloadType::PPGFrame:
-			heartPPGBuffer->pushHead(packet.payload.ppgFrame);
+			heartPPGBuffer->writeItem(packet.payload.ppgFrame);
 			break;
 		case ISensorListener::SensorPacketPayloadType::PPIFrame:
-			heartPPIBuffer->pushHead(packet.payload.ppiFrame);
+			heartPPIBuffer->writeItem(packet.payload.ppiFrame);
 			break;
 		}
 	}
