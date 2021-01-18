@@ -23,16 +23,16 @@ public:
         }
     }
 
-    size_t bytesRemaining() 
+    bool canRead() const
 	{
-        return getSize() - m_readPosition;
+        return m_readPosition < m_writePosition;
     }
 
     void clear() 
 	{
         m_readPosition = 0;
         m_writePosition = 0;
-        memset(m_buffer, 0, getSize());
+        memset(m_buffer, 0, getCapacity());
     }
 
     const uint8_t* getBuffer() const
@@ -40,7 +40,7 @@ public:
         return m_buffer;
     }
 
-	uint32_t getSize() const
+	size_t getCapacity() const
 	{ 
 		return k_buffer_size; 
 	}
@@ -259,12 +259,13 @@ private:
 	{
 		T data = getAt<T>(m_readPosition);
 		m_readPosition += sizeof(T);
+		assert(m_readPosition <= m_writePosition);
 		return data;
 	}
 
 	template<typename T> T getAt(size_t index) const 
 	{
-        if (index + sizeof(T) <= getSize())
+        if (index + sizeof(T) <= getCapacity())
         {
             return *((T*)&m_buffer[index]);
         }
@@ -276,7 +277,7 @@ private:
 	{
 		size_t s = sizeof(data);
 
-        if (getSize() < (m_writePosition + s))
+        if (getCapacity() < (m_writePosition + s))
         {
             assert(false);
             return;
@@ -289,7 +290,7 @@ private:
 
 	template<typename T> void setAt(T data, size_t index) 
 	{
-		if ((index + sizeof(data)) > getSize())
+		if ((index + sizeof(data)) > getCapacity())
 			return;
 
 		memcpy(&m_buffer[index], (uint8_t*) &data, sizeof(data));
