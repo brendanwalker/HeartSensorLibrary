@@ -17,7 +17,7 @@
 #include <utility>
 
 // Devices
-#include <PolarH10Sensor.h>
+#include <PolarSensor.h>
 
 //-- constants -----
 static const int k_default_sensor_reconnect_interval= 1000; // ms
@@ -125,7 +125,8 @@ bool DeviceManager::startup()
 	}
 
 	// Register device factory functions
-	registerDeviceFactory(PolarH10Sensor::k_szFriendlyName, PolarH10Sensor::PolarH10SensorFactory);
+	registerDeviceFactory("Polar H10", PolarSensor::PolarSensorFactory);
+	registerDeviceFactory("Polar OH1", PolarSensor::PolarSensorFactory);
 
 	// Register for hotplug events if this platform supports them
 	int sensor_reconnect_interval = m_config->sensor_reconnect_interval;
@@ -196,7 +197,7 @@ DeviceManager::DeviceFactoryFunction DeviceManager::getFactoryFunction(
 	{
 		const std::string &prefix= it->first;
 
-		if (deviceFriendlyName.find_first_of(prefix) == 0)
+		if (deviceFriendlyName.find(prefix) == 0)
 		{
 			return it->second;
 		}		

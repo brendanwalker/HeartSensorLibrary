@@ -50,11 +50,11 @@ file(GLOB HSL_DEVICE_SENSORS_SRC
 )
 source_group("Device\\Sensors" FILES ${HSL_DEVICE_SENSORS_SRC})
 
-file(GLOB HSL_DEVICE_SENSORS_POLARH10_SRC
-    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar_h10/*.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar_h10/*.h"
+file(GLOB HSL_DEVICE_SENSORS_POLAR_SRC
+    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar/*.h"
 )
-source_group("Device\\Sensors\\PolarH10" FILES ${HSL_DEVICE_SENSORS_POLARH10_SRC})
+source_group("Device\\Sensors\\Polar" FILES ${HSL_DEVICE_SENSORS_POLAR_SRC})
 
 file(GLOB HSL_DEVICE_VIEW_SRC
     "${CMAKE_CURRENT_LIST_DIR}/device/view/*.cpp"
@@ -81,7 +81,7 @@ set(HSL_SERVICE_SRC
 	${HSL_DEVICE_ENUM_SRC}
 	${HSL_DEVICE_INT_SRC}
 	${HSL_DEVICE_SENSORS_SRC}
-	${HSL_DEVICE_SENSORS_POLARH10_SRC}
+	${HSL_DEVICE_SENSORS_POLAR_SRC}
 	${HSL_DEVICE_MGR_SRC}
 	${HSL_DEVICE_VIEW_SRC}
 	${HSL_SERVICE_SRC} 
@@ -96,7 +96,7 @@ list(APPEND HSL_SERVICE_INCL_DIRS
 	${CMAKE_CURRENT_LIST_DIR}/device/interface
 	${CMAKE_CURRENT_LIST_DIR}/device/manager
 	${CMAKE_CURRENT_LIST_DIR}/device/sensors
-	${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar_h10
+	${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar
 	${CMAKE_CURRENT_LIST_DIR}/device/view
 	${CMAKE_CURRENT_LIST_DIR}/platform
 	${CMAKE_CURRENT_LIST_DIR}/service
@@ -124,7 +124,7 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 ELSE()
 ENDIF()
 
-# PSMoveMath
+# HSLMath
 list(APPEND HSL_SERVICE_INCL_DIRS ${ROOT_DIR}/src/hslmath/)
 list(APPEND HSL_SERVICE_REQ_LIBS HSLMath)
 

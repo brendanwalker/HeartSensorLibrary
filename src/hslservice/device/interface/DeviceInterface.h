@@ -62,7 +62,7 @@ public:
 	virtual void notifySensorDataReceived(const SensorPacket *sensor_state) = 0;
 };
 
-/// Abstract class for sensor interface. Implemented in PSMoveSensor.cpp
+/// Abstract class for sensor interface. 
 class ISensorInterface : public IDeviceInterface
 {
 public:
