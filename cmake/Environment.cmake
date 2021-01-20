@@ -22,45 +22,45 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 if (${CMAKE_C_SIZEOF_DATA_PTR} EQUAL 8)
     set(BITNESS "64")
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        set(ARCH_LABEL "Win64")
+        set(ARCH_LABEL "win64")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        set(ARCH_LABEL "OSX64")
+        set(ARCH_LABEL "osx64")
     else()
-        set(ARCH_LABEL "Linux64")
+        set(ARCH_LABEL "linux64")
     endif()
 else()
     set(BITNESS "32")
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        set(ARCH_LABEL "Win32")
+        set(ARCH_LABEL "win32")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        set(ARCH_LABEL "OSX32")
+        set(ARCH_LABEL "osx32")
     else()
-        set(ARCH_LABEL "Linux32")
+        set(ARCH_LABEL "linux32")
     endif()
 endif()
 
 IF(MSVC)
-	#I cannot remember which one, but one of our dependencies
-	#links against static runtime, so we need our apps to link
-	#against the static runtime too.
-	#https://cmake.org/Wiki/CMake_FAQ#How_can_I_build_my_MSVC_application_with_a_static_runtime.3F
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+    #I cannot remember which one, but one of our dependencies
+    #links against static runtime, so we need our apps to link
+    #against the static runtime too.
+    #https://cmake.org/Wiki/CMake_FAQ#How_can_I_build_my_MSVC_application_with_a_static_runtime.3F
+    #SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+    #SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 
-    set(CompilerFlags
-        CMAKE_CXX_FLAGS
-        CMAKE_CXX_FLAGS_DEBUG
-        CMAKE_CXX_FLAGS_RELEASE
-        CMAKE_C_FLAGS
-        CMAKE_C_FLAGS_DEBUG
-        CMAKE_C_FLAGS_RELEASE
-        )
-    foreach(CompilerFlag ${CompilerFlags})
-      string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
-    endforeach()
+    #set(CompilerFlags
+    #    CMAKE_CXX_FLAGS
+    #    CMAKE_CXX_FLAGS_DEBUG
+    #    CMAKE_CXX_FLAGS_RELEASE
+    #    CMAKE_C_FLAGS
+    #    CMAKE_C_FLAGS_DEBUG
+    #    CMAKE_C_FLAGS_RELEASE
+    #    )
+    #foreach(CompilerFlag ${CompilerFlags})
+    #  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+    #endforeach()
 
     # fix: fatal error C1128: number of sections exceeded object file format limit
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")	
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")	
 ELSE()
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-switch")
 ENDIF(MSVC)
