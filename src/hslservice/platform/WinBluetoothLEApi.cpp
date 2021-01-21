@@ -68,10 +68,10 @@ struct WinBLEDeviceInfo
 		// device_info_data.friendly_name as nullptr indicating the name not read.
 		win32_device_fetch_friendly_Name(deviceInfoSetHandle, deviceInfoData, FriendlyName);
 
-		//if (!verifyBLEDeviceConnected(deviceInfoSetHandle, deviceInfoData))
-		//{
-		//	return false;
-		//}
+		if (!verifyBLEDeviceConnected(deviceInfoSetHandle, deviceInfoData))
+		{
+			return false;
+		}
 
 		if (!fetchServiceUUIDs())
 		{
