@@ -40,15 +40,6 @@
 // Shared Constants
 //-----------------
 
-/// Result enum in response to a client API request
-typedef enum
-{
-	HSLResult_Canceled		= -3,	///< Request Was Canceled
-	HSLResult_NoData		= -2,	///< Request Returned No Data
-	HSLResult_Error			= -1,	///< General Error Result
-	HSLResult_Success		= 0,	///< General Success Result
-} HSLResult;
-
 typedef enum
 {
 	HSLContactStatus_Invalid		= 0,
@@ -255,21 +246,21 @@ typedef struct
 /** \brief Initializes a connection to HSLService.
  Attempts to initialize HSLervice. 
  This function must be called before calling any other client functions. 
- Calling this function again after a connection is already started will return HSLResult_Success.
+ Calling this function again after a connection is already started will return true.
 
  \param log_level The level of logging to emit
- \returns HSLResult_Success on success, HSLResult_Timeout, or HSLResult_Error on a general connection error.
+ \returns true on success, false on a general init error.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_Initialize(HSLLogSeverityLevel log_level); 
+HSL_PUBLIC_FUNCTION(bool) HSL_Initialize(HSLLogSeverityLevel log_level); 
 
 /** \brief Shuts down connection to HSLService
  Shuts down HSLService. 
  This function should be called when closing down the client.
- Calling this function again after a connection is alread closed will return HSLResult_Error.
+ Calling this function again after a connection is already closed will return false.
 
-	\returns HSLResult_Success on success or HSLResult_Error if there was no valid connection.
+	\returns true on success or false if there was no valid connection.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_Shutdown();
+HSL_PUBLIC_FUNCTION(bool) HSL_Shutdown();
 
 // Update
 /** \brief Poll the connection and process messages.
@@ -279,18 +270,18 @@ HSL_PUBLIC_FUNCTION(HSLResult) HSL_Shutdown();
 		- \ref HSL_GetIsInitialized()
 		- \ref HSL_HasSensorListChanged()
 		
-	\return HSLResult_Success if initialize or HSLResult_Error otherwise
+	\return true if initialize or false otherwise
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_Update();
+HSL_PUBLIC_FUNCTION(bool) HSL_Update();
 
 /** \brief Poll the connection and DO NOT process messages.
 	This function will poll the connection for new messages from HSLService.
 	If new events are received they are put in a queue. The messages are extracted using \ref HSL_PollNextMessage().
 	Messages not read from the queue will get cleared on the next update call. 
 	
-	\return HSLResult_Success if there is an active connection or HSLResult_Error if there is no valid connection
+	\return true if there is an active connection or false if there is no valid connection
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_UpdateNoPollEvents();
+HSL_PUBLIC_FUNCTION(bool) HSL_UpdateNoPollEvents();
 
 // System State Queries
 /** \brief Get the API initialization status
@@ -311,9 +302,9 @@ HSL_PUBLIC_FUNCTION(bool) HSL_HasSensorListChanged();
 /** \brief Get the client API version string from HSLService
 	\param[out] out_version_string The string buffer to write the version into
 	\param max_version_string The size of the output buffer
-	\return HSLResult_Success upon receiving result, HSLResult_Timeoout, or HSLResult_Error on request error.
+	\return true upon receiving result or false on request error.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetVersionString(char *out_version_string, size_t max_version_string);
+HSL_PUBLIC_FUNCTION(bool) HSL_GetVersionString(char *out_version_string, size_t max_version_string);
 
 // Message Handling API
 /** \brief Retrieve the next message from the message queue.
@@ -322,9 +313,9 @@ HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetVersionString(char *out_version_string, si
 	If a response message does not have a callback registered with \ref HSL_RegisterCallback it will get returned here.	
 	\param[out] out_messaage The next \ref HSLEventMessage read from the incoming message queue.
 	\param message_size The size of the message structure. Pass in sizeof(HSLEventMessage).
-	\return HSLResult_Success or HSLResult_NoData if no more messages are available.
+	\return true or bool_NoData if no more messages are available.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_PollNextMessage(HSLEventMessage *out_message, size_t message_size);
+HSL_PUBLIC_FUNCTION(bool) HSL_PollNextMessage(HSLEventMessage *out_message, size_t message_size);
 
 // Sensor Pool
 /** \brief Fetches the \ref HSLSensor data for the given Sensor
@@ -366,9 +357,9 @@ HSL_PUBLIC_FUNCTION(HSLHeartVariabilityFrame *) HSL_BufferIteratorGetHRVData(HSL
 /** \brief Requests a list of the streamable Sensors currently connected to HSLService.
 	Sends a request to HSLService to get the list of currently streamable Sensors.
 	\param[out] out_Sensor_list The Sensor list to write the result into.
-	\return HSLResult_Success upon receiving result, HSLResult_Timeoout, or HSLResult_Error on request error.
+	\return true upon receiving result or false on request error.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetSensorList(HSLSensorList *out_sensor_list);
+HSL_PUBLIC_FUNCTION(bool) HSL_GetSensorList(HSLSensorList *out_sensor_list);
 
 /** \brief Requests start/stop of a data streams for a given Sensor
 	Asks HSLService to start or stop stream data for the given Sensor with the given set of stream properties.
@@ -378,9 +369,9 @@ HSL_PUBLIC_FUNCTION(HSLResult) HSL_GetSensorList(HSLSensorList *out_sensor_list)
 	\param sensor_ The id of the Sensor to start the stream for.
 	\param data_stream_bitmask One or more of the flags from \ref HSLSensorDataStreamFlags
 	\param filter_stream_bitmask One or more of the flags from \ref HSLHeartRateVariabityFilterType
-	\return HSLResult_Success upon receiving result, HSLResult_Timeoout, or HSLResult_Error on request error.
+	\return true upon receiving result or false on request error.
  */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_SetActiveSensorDataStreams(
+HSL_PUBLIC_FUNCTION(bool) HSL_SetActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
 	t_hsl_stream_bitmask data_stream_bitmask,
 	t_hrv_filter_bitmask filter_stream_bitmask);
@@ -391,8 +382,8 @@ HSL_PUBLIC_FUNCTION(HSLResult) HSL_SetActiveSensorDataStreams(
 	\ref HSL_UpdateNoPollMessages.
 	Requests to restart an already started stream will return an error.
 	\param sensor_ The id of the Sensor to start the stream for.
-	\return HSLResult_Success upon receiving result, HSLResult_Timeoout, or HSLResult_Error on request error. */
-HSL_PUBLIC_FUNCTION(HSLResult) HSL_StopAllSensorDataStreams(HSLSensorID sensor_id);
+	\return true upon receiving result or false on request error. */
+HSL_PUBLIC_FUNCTION(bool) HSL_StopAllSensorDataStreams(HSLSensorID sensor_id);
 
 /** 
 @} 

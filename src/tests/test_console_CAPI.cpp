@@ -71,7 +71,7 @@ private:
 		// Attempt to connect to the server
 		if (success)
 		{
-			if (HSL_Initialize(HSLLogSeverityLevel_info) == HSLResult_Success)
+			if (HSL_Initialize(HSLLogSeverityLevel_info))
 			{
 				char version_string[32];
 
@@ -98,7 +98,7 @@ private:
 	void update()
 	{	
 		// Polls events and updates Sensor state
-		if (HSL_Update() != HSLResult_Success)
+		if (!HSL_Update())
 		{
 			m_keepRunning= false;
 		}
@@ -121,7 +121,7 @@ private:
 			// Restart the Sensor streams
 			if (SensorList.count > 0) 
 			{
-				if (HSL_SetActiveSensorDataStreams(SensorList.Sensors[0].sensorID, data_stream_flags, filter_stream_bitmask) != HSLResult_Success)
+				if (!HSL_SetActiveSensorDataStreams(SensorList.Sensors[0].sensorID, data_stream_flags, filter_stream_bitmask))
 				{
 					m_keepRunning = false;
 				}

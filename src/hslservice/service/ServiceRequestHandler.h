@@ -28,15 +28,15 @@ public:
 
 	// -- sensor requests -----
 	class ServerSensorView *get_sensor_view_or_null(HSLSensorID hmd_id);
-	HSLResult get_sensor_list(HSLSensorList *out_sensor_list);
-	HSLResult setActiveSensorDataStreams(
+	bool get_sensor_list(HSLSensorList *out_sensor_list);
+	bool setActiveSensorDataStreams(
 		HSLSensorID sensor_id, 
 		t_hsl_stream_bitmask data_stream_flags, 
 		t_hrv_filter_bitmask filter_stream_bitmask);
-	HSLResult stopAllActiveSensorDataStreams(HSLSensorID sensor_id);
+	bool stopAllActiveSensorDataStreams(HSLSensorID sensor_id);
 
 	// -- general requests -----
-	HSLResult get_service_version(char *out_version_string, size_t max_version_string);		
+	bool get_service_version(char *out_version_string, size_t max_version_string);		
 
 private:
 	class DeviceManager *m_deviceManager;

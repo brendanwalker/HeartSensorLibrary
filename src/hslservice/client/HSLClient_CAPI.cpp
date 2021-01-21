@@ -31,9 +31,9 @@ bool HSL_HasSensorListChanged()
 	return g_HSL_client != nullptr && g_HSL_client->pollHasSensorListChanged();
 }
 
-HSLResult HSL_Initialize(HSLLogSeverityLevel log_level)
+bool HSL_Initialize(HSLLogSeverityLevel log_level)
 {
-	HSLResult result= HSLResult_Success;
+	bool result= true;
 
 	if (g_HSL_service == nullptr)
 	{
@@ -49,19 +49,19 @@ HSLResult HSL_Initialize(HSLLogSeverityLevel log_level)
 	{
 		if (!g_HSL_service->startup(log_level, g_HSL_client))
 		{
-			result= HSLResult_Error;
+			result= false;
 		}
 	}
 	
-	if (result == HSLResult_Success)
+	if (result == true)
 	{
 		if (!g_HSL_client->startup(log_level, g_HSL_service->getRequestHandler()))
 		{
-			result= HSLResult_Error;
+			result= false;
 		}
 	}
 
-		if (result != HSLResult_Success)
+		if (result != true)
 		{
 				if (g_HSL_service != nullptr)
 				{
@@ -81,9 +81,9 @@ HSLResult HSL_Initialize(HSLLogSeverityLevel log_level)
 		return result;
 }
 
-HSLResult HSL_GetVersionString(char *out_version_string, size_t max_version_string)
+bool HSL_GetVersionString(char *out_version_string, size_t max_version_string)
 {
-		HSLResult result= HSLResult_Error;
+		bool result= false;
 
 		if (g_HSL_client != nullptr)
 		{
@@ -93,9 +93,9 @@ HSLResult HSL_GetVersionString(char *out_version_string, size_t max_version_stri
 		return result;
 }
 
-HSLResult HSL_Shutdown()
+bool HSL_Shutdown()
 {
-	HSLResult result= HSLResult_Error;
+	bool result= false;
 
 	if (g_HSL_client != nullptr)
 	{
@@ -104,7 +104,7 @@ HSLResult HSL_Shutdown()
 		delete g_HSL_client;
 		g_HSL_client= nullptr;
 
-		result= HSLResult_Success;
+		result= true;
 	}	
 	
 	if (g_HSL_service != nullptr)
@@ -114,31 +114,31 @@ HSLResult HSL_Shutdown()
 		delete g_HSL_service;
 		g_HSL_service= nullptr;
 
-		result= HSLResult_Success;
+		result= true;
 	}	
 
 		return result;
 }
 
-HSLResult HSL_Update()
+bool HSL_Update()
 {
-		HSLResult result = HSLResult_Error;
+		bool result = false;
 
-		if (HSL_UpdateNoPollEvents() == HSLResult_Success)
+		if (HSL_UpdateNoPollEvents() == true)
 		{
 			// Process all events and responses
 			// Any incoming events become status flags we can poll (ex: pollHasConnectionStatusChanged)
 			g_HSL_client->process_messages();
 
-				result= HSLResult_Success;
+				result= true;
 		}
 
 		return result;
 }
 
-HSLResult HSL_UpdateNoPollEvents()
+bool HSL_UpdateNoPollEvents()
 {
-		HSLResult result= HSLResult_Error;
+		bool result= false;
 
 		if (g_HSL_service != nullptr)
 		{
@@ -146,7 +146,7 @@ HSLResult HSL_UpdateNoPollEvents()
 			{
 				g_HSL_client->update();
 
-				result = HSLResult_Success;
+				result = true;
 			}
 
 			g_HSL_service->update();
@@ -155,13 +155,13 @@ HSLResult HSL_UpdateNoPollEvents()
 		return result;
 }
 
-HSLResult HSL_PollNextMessage(HSLEventMessage *message, size_t message_size)
+bool HSL_PollNextMessage(HSLEventMessage *message, size_t message_size)
 {
 	// Poll events queued up by the call to g_HSL_client->update()
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->poll_next_message(message) ? HSLResult_Success : HSLResult_Error;
+		return g_HSL_client->poll_next_message(message) ? true : false;
 	else
-		return HSLResult_Error;
+		return false;
 }
 
 /// Sensor Pool
@@ -316,9 +316,9 @@ HSLHeartVariabilityFrame* HSL_BufferIteratorGetHRVData(HSLBufferIterator* iterat
 }
 
 /// Sensor Requests
-HSLResult HSL_GetSensorList(HSLSensorList *out_sensor_list)
+bool HSL_GetSensorList(HSLSensorList *out_sensor_list)
 {
-	HSLResult result= HSLResult_Error;
+	bool result= false;
 
 	if (g_HSL_service != nullptr)
 	{
@@ -328,12 +328,12 @@ HSLResult HSL_GetSensorList(HSLSensorList *out_sensor_list)
 	return result;
 }
 
-HSLResult HSL_SetActiveSensorDataStreams(
+bool HSL_SetActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
 	t_hsl_stream_bitmask data_stream_flags,
 	t_hrv_filter_bitmask filter_stream_bitmask)
 {
-	HSLResult result= HSLResult_Error;
+	bool result= false;
 
 	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
 	{
@@ -344,9 +344,9 @@ HSLResult HSL_SetActiveSensorDataStreams(
 	return result;
 }
 
-HSLResult HSL_StopAllSensorDataStreams(HSLSensorID sensor_id)
+bool HSL_StopAllSensorDataStreams(HSLSensorID sensor_id)
 {
-	HSLResult result= HSLResult_Error;
+	bool result= false;
 
 	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
 	{

@@ -66,7 +66,7 @@ ServerSensorView *ServiceRequestHandler::get_sensor_view_or_null(HSLSensorID sen
     return sensor_view;
 }
 
-HSLResult ServiceRequestHandler::get_sensor_list(
+bool ServiceRequestHandler::get_sensor_list(
 	HSLSensorList *out_sensor_list)
 {
     memset(out_sensor_list, 0, sizeof(HSLSensorList));
@@ -87,15 +87,15 @@ HSLResult ServiceRequestHandler::get_sensor_list(
 		m_deviceManager->getSensorManager()->getBluetoothHostAddress().c_str(), 
 		sizeof(out_sensor_list->host_serial));
 
-    return HSLResult_Success;
+    return true;
 }
 
-HSLResult ServiceRequestHandler::setActiveSensorDataStreams(
+bool ServiceRequestHandler::setActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
 	t_hsl_stream_bitmask data_stream_flags,
 	t_hrv_filter_bitmask filter_stream_bitmask)
 {
-	HSLResult result= HSLResult_Error;
+	bool result= false;
 
     ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
 
@@ -104,23 +104,23 @@ HSLResult ServiceRequestHandler::setActiveSensorDataStreams(
 		bool bSuccess= sensor_view->setActiveSensorDataStreams(data_stream_flags, filter_stream_bitmask);
 
         // Return the name of the shared memory block the video frames will be written to
-		result= bSuccess ? HSLResult_Success : HSLResult_Error;
+		result= bSuccess ? true : false;
 	}
 
 	return result;
 }
 
-HSLResult ServiceRequestHandler::stopAllActiveSensorDataStreams(HSLSensorID sensor_id)
+bool ServiceRequestHandler::stopAllActiveSensorDataStreams(HSLSensorID sensor_id)
 {
 	return setActiveSensorDataStreams(sensor_id, 0, 0);
 }
 
-HSLResult ServiceRequestHandler::get_service_version(
+bool ServiceRequestHandler::get_service_version(
     char *out_version_string, 
 	size_t max_version_string)
 {
     // Return the protocol version
     strncpy(out_version_string, HSL_SERVICE_VERSION_STRING, max_version_string);
 		
-	return HSLResult_Success;
+	return true;
 }
