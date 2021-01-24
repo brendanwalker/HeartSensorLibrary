@@ -25,12 +25,13 @@ public:
 	// -- Client HSL API System -----
 	bool startup(HSLLogSeverityLevel log_level, class ServiceRequestHandler * request_handler);
 	void update();
-	void process_messages();
-	bool poll_next_message(HSLEventMessage *message);
+	void fetchMessagesFromServer();
+	bool fetchNextServerMessage(HSLEventMessage *message);
+	void flushAllServerMessages();
 	void shutdown();
 
 	// -- Client HSL API Requests -----
-	HSLSensor* get_sensor_view(HSLSensorID sensor_id);
+	HSLSensor* getClientSensorView(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartRateBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartECGBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartPPGBuffer(HSLSensorID sensor_id);
@@ -46,7 +47,7 @@ protected:
 
 	// Message Helpers
 	//-----------------
-	void process_event_message(const HSLEventMessage *event_message);
+	void processServerMessage(const HSLEventMessage *event_message);
 
 private:
 	//-- Request Handling -----
@@ -60,7 +61,7 @@ private:
 	//-- Messages -----
 	// Queue of message received from the most recent call to update()
 	// This queue will be emptied automatically at the next call to update().
-	t_message_queue m_message_queue;
+	t_message_queue m_serverMessageQueue;
 };
 
 

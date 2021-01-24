@@ -25,6 +25,7 @@ public:
 	virtual void readFromJSON(const configuru::Config &pt);
 
 	int version;
+	int heartRateTimeoutMilliSeconds;
 };
 
 class SensorManager : public DeviceTypeManager

@@ -10,11 +10,13 @@
 class HSLService
 {
 public:
-		HSLService();
-		virtual ~HSLService();
+	HSLService();
+	virtual ~HSLService();
 
-		static HSLService *getInstance()
-		{ return m_instance; }
+	static HSLService* getInstance()
+	{
+		return m_instance;
+	}
 
 	bool startup(
 		HSLLogSeverityLevel log_level, 

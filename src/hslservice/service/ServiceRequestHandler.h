@@ -24,19 +24,19 @@ public:
 	void shutdown();
 	
 	/// Send a event to the client
-	void publish_notification(const HSLEventMessage &message);
+	void publishNotification(const HSLEventMessage &message);
 
 	// -- sensor requests -----
-	class ServerSensorView *get_sensor_view_or_null(HSLSensorID hmd_id);
-	bool get_sensor_list(HSLSensorList *out_sensor_list);
-	bool setActiveSensorDataStreams(
-		HSLSensorID sensor_id, 
-		t_hsl_stream_bitmask data_stream_flags, 
-		t_hrv_filter_bitmask filter_stream_bitmask);
-	bool stopAllActiveSensorDataStreams(HSLSensorID sensor_id);
+	class ServerSensorView *getServerSensorView(HSLSensorID sensor_id);
+	bool getSensorList(HSLSensorList *out_sensor_list) const;
+	bool setActiveSensorDataStreams(HSLSensorID sensor_id, t_hsl_stream_bitmask data_stream_flags);
+	t_hsl_stream_bitmask getActiveSensorDataStreams(HSLSensorID sensor_id) const;
+	bool setActiveSensorFilterStreams(HSLSensorID sensor_id, t_hrv_filter_bitmask filter_stream_bitmask);
+	t_hrv_filter_bitmask getActiveSensorFilterStreams(HSLSensorID sensor_id) const;
+	bool stopAllActiveSensorStreams(HSLSensorID sensor_id);
 
 	// -- general requests -----
-	bool get_service_version(char *out_version_string, size_t max_version_string);		
+	bool getServiceVersion(char *out_version_string, size_t max_version_string) const;		
 
 private:
 	class DeviceManager *m_deviceManager;

@@ -46,13 +46,13 @@ void ServiceRequestHandler::shutdown()
 	m_instance= nullptr;
 }
 
-void ServiceRequestHandler::publish_notification(const HSLEventMessage &message)
+void ServiceRequestHandler::publishNotification(const HSLEventMessage &message)
 {
     m_notificationListener->handle_notification(message);
 }
 	
 // -- sensor requests -----
-ServerSensorView *ServiceRequestHandler::get_sensor_view_or_null(HSLSensorID sensor_id)
+ServerSensorView *ServiceRequestHandler::getServerSensorView(HSLSensorID sensor_id)
 {
     ServerSensorView *sensor_view = nullptr;
 
@@ -66,58 +66,90 @@ ServerSensorView *ServiceRequestHandler::get_sensor_view_or_null(HSLSensorID sen
     return sensor_view;
 }
 
-bool ServiceRequestHandler::get_sensor_list(
-	HSLSensorList *out_sensor_list)
+bool ServiceRequestHandler::getSensorList(HSLSensorList *out_sensor_list) const
 {
+	strncpy(out_sensor_list->hostSerial,
+			m_deviceManager->getSensorManager()->getBluetoothHostAddress().c_str(),
+			sizeof(out_sensor_list->hostSerial));
+
     memset(out_sensor_list, 0, sizeof(HSLSensorList));
     for (int sensor_id = 0; sensor_id < m_deviceManager->getSensorViewMaxCount(); ++sensor_id)
     {
         ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
 
-        if (out_sensor_list->count < HSLSERVICE_MAX_SENSOR_COUNT && 
-			sensor_view->getIsOpen())
+        if (sensor_view->getIsOpen() && out_sensor_list->count < HSLSERVICE_MAX_SENSOR_COUNT)
         {
-			HSLSensor *sensor_info = &out_sensor_list->Sensors[out_sensor_list->count++];
+			HSLSensorListEntry *sensor_list_entry = &out_sensor_list->sensors[out_sensor_list->count++];
 
-			sensor_view->fetchSensorInfo(sensor_info);
+			sensor_view->fetchSensorListEntry(sensor_list_entry);
         }
     }
-
-	strncpy(out_sensor_list->host_serial, 
-		m_deviceManager->getSensorManager()->getBluetoothHostAddress().c_str(), 
-		sizeof(out_sensor_list->host_serial));
 
     return true;
 }
 
 bool ServiceRequestHandler::setActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_flags,
-	t_hrv_filter_bitmask filter_stream_bitmask)
+	t_hsl_stream_bitmask data_stream_flags)
 {
-	bool result= false;
-
     ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
 
     if (sensor_view && sensor_view->getIsOpen())
     {
-		bool bSuccess= sensor_view->setActiveSensorDataStreams(data_stream_flags, filter_stream_bitmask);
-
-        // Return the name of the shared memory block the video frames will be written to
-		result= bSuccess ? true : false;
+		return sensor_view->setActiveSensorDataStreams(data_stream_flags);
 	}
 
-	return result;
+	return false;
 }
 
-bool ServiceRequestHandler::stopAllActiveSensorDataStreams(HSLSensorID sensor_id)
+t_hsl_stream_bitmask ServiceRequestHandler::getActiveSensorDataStreams(HSLSensorID sensor_id) const
 {
-	return setActiveSensorDataStreams(sensor_id, 0, 0);
+	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
+
+	if (sensor_view && sensor_view->getIsOpen())
+	{
+		return sensor_view->getActiveSensorDataStreams();
+	}
+
+	return 0;
 }
 
-bool ServiceRequestHandler::get_service_version(
+bool ServiceRequestHandler::setActiveSensorFilterStreams(
+	HSLSensorID sensor_id,
+	t_hrv_filter_bitmask filter_stream_bitmask)
+{
+	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
+
+	if (sensor_view && sensor_view->getIsOpen())
+	{
+		return sensor_view->setActiveSensorFilterStreams(filter_stream_bitmask);
+	}
+
+	return false;
+}
+
+t_hrv_filter_bitmask ServiceRequestHandler::getActiveSensorFilterStreams(HSLSensorID sensor_id) const
+{
+	bool result = false;
+
+	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
+
+	if (sensor_view && sensor_view->getIsOpen())
+	{
+		return sensor_view->getActiveSensorFilterStreams();
+	}
+
+	return 0;
+}
+
+bool ServiceRequestHandler::stopAllActiveSensorStreams(HSLSensorID sensor_id)
+{
+	return setActiveSensorDataStreams(sensor_id, 0) && setActiveSensorFilterStreams(sensor_id, 0);
+}
+
+bool ServiceRequestHandler::getServiceVersion(
     char *out_version_string, 
-	size_t max_version_string)
+	size_t max_version_string) const
 {
     // Return the protocol version
     strncpy(out_version_string, HSL_SERVICE_VERSION_STRING, max_version_string);

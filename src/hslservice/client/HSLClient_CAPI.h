@@ -168,13 +168,25 @@ typedef struct
 /// Device strings 
 typedef struct
 {
-    char systemID[32];
-    char modelNumberString[32];
-    char serialNumberString[32];
-    char firmwareRevisionString[32];
-    char hardwareRevisionString[32];
-    char softwareRevisionString[32];
-    char manufacturerNameString[64];
+	// OS Device Information
+	char					deviceFriendlyName[256];
+	char					devicePath[256];
+
+	// DeviceInformation GATT Service
+	char					systemID[32];
+    char					modelNumberString[32];
+    char					serialNumberString[32];
+    char					firmwareRevisionString[32];
+    char					hardwareRevisionString[32];
+    char					softwareRevisionString[32];
+    char					manufacturerNameString[64];
+
+	// HeartRate GATT Service
+	char					bodyLocation[32];
+
+	// HSL Device Information
+	HSLSensorID				sensorID;
+	t_hsl_stream_bitmask	capabilities;
 } HSLDeviceInformation;
 
 /// Sensor Pool Entry
@@ -182,20 +194,12 @@ typedef struct
 {
 	// Static Data
 	HSLSensorID				sensorID;
-	t_hsl_stream_bitmask	capabilities;
-	char					deviceFriendlyName[256];
-	char					devicePath[256];
 	HSLDeviceInformation	deviceInformation;
 
 	// Dynamic Data
-	t_hsl_stream_bitmask	active_streams;
-	t_hrv_filter_bitmask	active_filters;
-	int						outputSequenceNum;
-	int						inputSequenceNum;
-	long long				dataFrameLastReceivedTime;
-	float					dataFrameAverageFPS;
-	bool					isValid;
-	bool					isConnected;
+	uint16_t				beatsPerMinute;
+	t_hsl_stream_bitmask	activeDataStreams;
+	t_hrv_filter_bitmask	activeFilterStreams;
 } HSLSensor;
 
 typedef struct 
@@ -232,11 +236,20 @@ typedef struct
 	char version_string[HSLSERVICE_MAX_VERSION_STRING_LEN];
 } HSLServiceVersion;
 
+/// Static sensor state in the sensor list entry
+typedef struct
+{
+	// Device ID remains constant while the device is open
+	HSLSensorID				sensorID;
+	// Static device information for the device
+	HSLDeviceInformation	deviceInformation;
+} HSLSensorListEntry;
+
 /// List of Sensors attached to HSLService
 typedef struct
 {
-	char host_serial[HSLSERVICE_SENSOR_SERIAL_LEN];
-	HSLSensor Sensors[HSLSERVICE_MAX_SENSOR_COUNT];
+	char hostSerial[HSLSERVICE_SENSOR_SERIAL_LEN];
+	HSLSensorListEntry sensors[HSLSERVICE_MAX_SENSOR_COUNT];
 	int count;
 } HSLSensorList;
 
@@ -315,7 +328,7 @@ HSL_PUBLIC_FUNCTION(bool) HSL_GetVersionString(char *out_version_string, size_t 
 	\param message_size The size of the message structure. Pass in sizeof(HSLEventMessage).
 	\return true or bool_NoData if no more messages are available.
  */
-HSL_PUBLIC_FUNCTION(bool) HSL_PollNextMessage(HSLEventMessage *out_message, size_t message_size);
+HSL_PUBLIC_FUNCTION(bool) HSL_PollNextMessage(HSLEventMessage *out_message);
 
 // Sensor Pool
 /** \brief Fetches the \ref HSLSensor data for the given Sensor
@@ -366,24 +379,34 @@ HSL_PUBLIC_FUNCTION(bool) HSL_GetSensorList(HSLSensorList *out_sensor_list);
 	The data in the associated \ref HSLSensor state will get updated automatically in calls to \ref HSL_Update or 
 	\ref HSL_UpdateNoPollMessages.
 	Requests to restart an already started stream will be ignored.
-	\param sensor_ The id of the Sensor to start the stream for.
+	\param sensor_id The id of the Sensor to start the stream for.
 	\param data_stream_bitmask One or more of the flags from \ref HSLSensorDataStreamFlags
-	\param filter_stream_bitmask One or more of the flags from \ref HSLHeartRateVariabityFilterType
 	\return true upon receiving result or false on request error.
  */
 HSL_PUBLIC_FUNCTION(bool) HSL_SetActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_bitmask,
-	t_hrv_filter_bitmask filter_stream_bitmask);
+	t_hsl_stream_bitmask data_stream_bitmask);
 
-/** \brief Requests stop of data stream for a given Sensor
-	Asks HSLService to start stream data for the given Sensor with the given set of stream properties.
+/** \brief Requests start/stop of a data streams for a given Sensor
+	Asks HSLService to start or stop stream data for the given Sensor with the given set of stream properties.
 	The data in the associated \ref HSLSensor state will get updated automatically in calls to \ref HSL_Update or 
 	\ref HSL_UpdateNoPollMessages.
-	Requests to restart an already started stream will return an error.
-	\param sensor_ The id of the Sensor to start the stream for.
+	Requests to restart an already started stream will be ignored.
+	\param sensor_id The id of the Sensor to start the stream for.
+	\param filter_stream_bitmask One or more of the flags from \ref HSLHeartRateVariabityFilterType
+	\return true upon receiving result or false on request error.
+ */
+HSL_PUBLIC_FUNCTION(bool) HSL_SetActiveSensorFilterStreams(
+	HSLSensorID sensor_id, 
+	t_hrv_filter_bitmask filter_stream_bitmask);
+
+/** \brief Requests stop of all data and filter streams for a given Sensor
+	Asks HSLService to stop all stream data for the given sensor_id.
+	The data in the associated \ref HSLSensor state will get updated automatically in calls to \ref HSL_Update or 
+	\ref HSL_UpdateNoPollMessages.
+	\param sensor_id The id of the Sensor to stop the streams for.
 	\return true upon receiving result or false on request error. */
-HSL_PUBLIC_FUNCTION(bool) HSL_StopAllSensorDataStreams(HSLSensorID sensor_id);
+HSL_PUBLIC_FUNCTION(bool) HSL_StopAllSensorStreams(HSLSensorID sensor_id);
 
 /** 
 @} 

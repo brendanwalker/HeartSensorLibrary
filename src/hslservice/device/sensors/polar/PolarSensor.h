@@ -13,15 +13,12 @@
 #include <deque>
 #include <chrono>
 
-struct PolarBluetoothLEDetails 
+struct PolarBluetoothInfo 
 {
-	std::string friendlyName;
-    std::string devicePath;
 	t_bluetoothle_device_handle deviceHandle;
 	BLEGattProfile *gattProfile;
     std::string bluetoothAddress;      // The bluetooth address of the sensor
 	HSLDeviceInformation deviceInfo;
-	std::string bodyLocation;
 
 	void reset();
 };
@@ -41,13 +38,14 @@ public:
 	virtual bool matchesDeviceEnumerator(const DeviceEnumerator *enumerator) const override;
 	virtual bool open(const DeviceEnumerator *enumerator) override;
 	virtual bool getIsOpen() const override;
-	virtual const std::string &getFriendlyName() const override;
+	virtual const std::string getFriendlyName() const override;
 	virtual void close() override;
 
 	// -- ISensorInterface
 	virtual bool setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags) override;
-    virtual const std::string &getDevicePath() const override;
-    virtual const std::string &getBluetoothAddress() const override;
+	virtual t_hsl_stream_bitmask getActiveSensorDataStreams() const override;
+    virtual const std::string getDevicePath() const override;
+    virtual const std::string getBluetoothAddress() const override;
 	virtual t_hsl_stream_bitmask getSensorCapabilities() const override;
 	virtual bool getDeviceInformation(HSLDeviceInformation *out_device_info) const override;
 	virtual int getCapabilitySampleRate(HSLSensorDataStreamFlags flag) const;
@@ -72,7 +70,7 @@ private:
 
 	// Constant while a sensor is open
     PolarSensorConfig m_config;
-    PolarBluetoothLEDetails m_bluetoothLEDetails;
+    PolarBluetoothInfo m_bluetoothLEDetails;
 
     // HID Packet Processing
 	class PolarPacketProcessor* m_packetProcessor;

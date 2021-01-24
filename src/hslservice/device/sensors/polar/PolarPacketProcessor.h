@@ -17,6 +17,7 @@ public:
 
 	void setConfig(const PolarSensorConfig& config);
 	void setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags);
+	t_hsl_stream_bitmask getActiveSensorDataStreams() const;
 
 	bool getStreamCapabilities(t_hsl_stream_bitmask& outStreamCapabilitiesBitmask);
 

@@ -229,6 +229,11 @@ void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_
 	}
 }
 
+t_hsl_stream_bitmask PolarPacketProcessor::getActiveSensorDataStreams() const
+{
+	return m_streamListenerBitmask;
+}
+
 // Callable from either main thread or worker thread
 bool PolarPacketProcessor::getStreamCapabilities(t_hsl_stream_bitmask& outStreamCapabilitiesBitmask)
 {

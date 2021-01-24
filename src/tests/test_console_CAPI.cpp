@@ -106,22 +106,30 @@ private:
 		// See if we need to rebuild the Sensor list
 		if (m_keepRunning && HSL_HasSensorListChanged())
 		{
-			t_hsl_stream_bitmask data_stream_flags = 0;
-			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
-			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_ECGData);
-			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_AccData);
-			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPGData);
-			HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPIData);
-
-			t_hrv_filter_bitmask filter_stream_bitmask = 0;
-
 			// Get the current Sensor list
-			rebuildSensorList();
+			fetchSensorList();
 
-			// Restart the Sensor streams
+			// Make sure sensor stream is started
 			if (SensorList.count > 0) 
 			{
-				if (!HSL_SetActiveSensorDataStreams(SensorList.Sensors[0].sensorID, data_stream_flags, filter_stream_bitmask))
+				const HSLSensorListEntry &listEntry= SensorList.sensors[0];
+
+				t_hsl_stream_bitmask data_stream_flags = 0;
+
+				if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_ECGData))
+				{
+					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_ECGData);
+				}
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_PPGData))
+				{
+					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPGData);
+				}
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_HRData))
+				{
+					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
+				}
+
+				if (!HSL_SetActiveSensorDataStreams(SensorList.sensors[0].sensorID, data_stream_flags))
 				{
 					m_keepRunning = false;
 				}
@@ -135,77 +143,90 @@ private:
 		// Get the Sensor data for the first Sensor
 		if (m_keepRunning && SensorList.count > 0)
 		{
-			HSLSensorID sensorID= SensorList.Sensors[0].sensorID;      
+			const HSLSensorID sensorID= SensorList.sensors[0].sensorID;
+			const HSLSensor *sensor= HSL_GetSensor(sensorID);
 
-			//for (HSLBufferIterator iter= HSL_GetHeartRateBuffer(sensorID); 
-			//	HSL_IsBufferIteratorValid(&iter);
-			//	HSL_BufferIteratorNext(&iter))
-			//{
-			//	HSLHeartRateFrame* hrFrame= HSL_BufferIteratorGetHRData(&iter);
-
-			//	if (hrFrame->timeInSeconds > lastHRDataTimestamp)
-			//	{
-			//		printf("[HR:%fs] %dBPM\n", hrFrame->timeInSeconds, hrFrame->beatsPerMinute);
-			//		lastHRDataTimestamp= hrFrame->timeInSeconds;
-			//	}
-			//}
-
-			//for (HSLBufferIterator iter = HSL_GetHeartPPGBuffer(sensorID);
-			//	 HSL_IsBufferIteratorValid(&iter);
-			//	 HSL_BufferIteratorNext(&iter))
-			//{
-			//	HSLHeartPPGFrame* ppgFrame = HSL_BufferIteratorGetPPGData(&iter);
-
-			//	if (ppgFrame->timeInSeconds > lastPPGDataTimestamp)
-			//	{
-			//		printf("[PPG: %fs]\n", ppgFrame->timeInSeconds);
-			//		for (int sample_index = 0; sample_index < ppgFrame->ppgSampleCount; ++sample_index)
-			//		{
-			//			const HSLHeartPPGSample& ppgSample = ppgFrame->ppgSamples[sample_index];
-
-			//			printf("    [0:%d, 1:%d, 2:%d], amb:%d\n",
-			//				   ppgSample.ppgValue0, ppgSample.ppgValue1, ppgSample.ppgValue2, ppgSample.ambient);
-			//		}
-
-			//		lastPPGDataTimestamp= ppgFrame->timeInSeconds;
-			//	}
-			//}
-
-			for (HSLBufferIterator iter = HSL_GetHeartPPIBuffer(sensorID);
-				 HSL_IsBufferIteratorValid(&iter);
-				 HSL_BufferIteratorNext(&iter))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_HRData))
 			{
-				HSLHeartPPIFrame* ppiFrame = HSL_BufferIteratorGetPPIData(&iter);
-
-				printf("[PPI: %fs]\n", ppiFrame->timeInSeconds);
-				for (int sample_index = 0; sample_index < ppiFrame->ppiSampleCount; ++sample_index)
+				for (HSLBufferIterator iter= HSL_GetHeartRateBuffer(sensorID); 
+					HSL_IsBufferIteratorValid(&iter);
+					HSL_BufferIteratorNext(&iter))
 				{
-					const HSLHeartPPISample& ppiSample = ppiFrame->ppiSamples[sample_index];
+					HSLHeartRateFrame* hrFrame= HSL_BufferIteratorGetHRData(&iter);
 
-					printf("    BPM:%d, Dur:%d(ms), Err:%d(ms)\n",
-							ppiSample.beatsPerMinute, ppiSample.pulseDuration, ppiSample.pulseDurationErrorEst);
+					if (hrFrame->timeInSeconds > lastHRDataTimestamp)
+					{
+						printf("[HR:%fs] %dBPM\n", hrFrame->timeInSeconds, hrFrame->beatsPerMinute);
+						lastHRDataTimestamp= hrFrame->timeInSeconds;
+					}
 				}
 			}
 
-			//for (HSLBufferIterator iter = HSL_GetHeartAccBuffer(sensorID);
-			//	 HSL_IsBufferIteratorValid(&iter);
-			//	 HSL_BufferIteratorNext(&iter))
-			//{
-			//	HSLAccelerometerFrame* accFrame = HSL_BufferIteratorGetAccData(&iter);
+			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPGData))
+			{
+				for (HSLBufferIterator iter = HSL_GetHeartPPGBuffer(sensorID);
+					 HSL_IsBufferIteratorValid(&iter);
+					 HSL_BufferIteratorNext(&iter))
+				{
+					HSLHeartPPGFrame* ppgFrame = HSL_BufferIteratorGetPPGData(&iter);
 
-			//	if (accFrame->timeInSeconds > lastAccDataTimestamp)
-			//	{
-			//		printf("[ACC: %fs]\n", accFrame->timeInSeconds);
-			//		for (int sample_index = 0; sample_index < accFrame->accSampleCount; ++sample_index)
-			//		{
-			//			const HSLVector3f& accSample = accFrame->accSamples[sample_index];
+					if (ppgFrame->timeInSeconds > lastPPGDataTimestamp)
+					{
+						printf("[PPG: %fs]\n", ppgFrame->timeInSeconds);
+						for (int sample_index = 0; sample_index < ppgFrame->ppgSampleCount; ++sample_index)
+						{
+							const HSLHeartPPGSample& ppgSample = ppgFrame->ppgSamples[sample_index];
 
-			//			printf("    [0:%.2f, 1:%.2f, 2:%.2f]\n", accSample.x, accSample.y, accSample.z);
-			//		}
+							printf("    [0:%d, 1:%d, 2:%d], amb:%d\n",
+								   ppgSample.ppgValue0, ppgSample.ppgValue1, ppgSample.ppgValue2, ppgSample.ambient);
+						}
 
-			//		lastAccDataTimestamp= accFrame->timeInSeconds;
-			//	}
-			//}
+						lastPPGDataTimestamp= ppgFrame->timeInSeconds;
+					}
+				}
+			}
+
+			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPIData))
+			{
+				for (HSLBufferIterator iter = HSL_GetHeartPPIBuffer(sensorID);
+					 HSL_IsBufferIteratorValid(&iter);
+					 HSL_BufferIteratorNext(&iter))
+				{
+					HSLHeartPPIFrame* ppiFrame = HSL_BufferIteratorGetPPIData(&iter);
+
+					printf("[PPI: %fs]\n", ppiFrame->timeInSeconds);
+					for (int sample_index = 0; sample_index < ppiFrame->ppiSampleCount; ++sample_index)
+					{
+						const HSLHeartPPISample& ppiSample = ppiFrame->ppiSamples[sample_index];
+
+						printf("    BPM:%d, Dur:%d(ms), Err:%d(ms)\n",
+							   ppiSample.beatsPerMinute, ppiSample.pulseDuration, ppiSample.pulseDurationErrorEst);
+					}
+				}
+			}
+
+			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_AccData))
+			{
+				for (HSLBufferIterator iter = HSL_GetHeartAccBuffer(sensorID);
+					 HSL_IsBufferIteratorValid(&iter);
+					 HSL_BufferIteratorNext(&iter))
+				{
+					HSLAccelerometerFrame* accFrame = HSL_BufferIteratorGetAccData(&iter);
+
+					if (accFrame->timeInSeconds > lastAccDataTimestamp)
+					{
+						printf("[ACC: %fs]\n", accFrame->timeInSeconds);
+						for (int sample_index = 0; sample_index < accFrame->accSampleCount; ++sample_index)
+						{
+							const HSLVector3f& accSample = accFrame->accSamples[sample_index];
+
+							printf("    [0:%.2f, 1:%.2f, 2:%.2f]\n", accSample.x, accSample.y, accSample.z);
+						}
+
+						lastAccDataTimestamp= accFrame->timeInSeconds;
+					}
+				}
+			}
 		}
 	}
 
@@ -213,15 +234,13 @@ private:
 	{
 		if (SensorList.count > 0)
 		{
-			HSL_StopAllSensorDataStreams(SensorList.Sensors[0].sensorID);
+			HSL_StopAllSensorStreams(SensorList.sensors[0].sensorID);
 		}
-		// No tracker data streams started
-		// No HMD data streams started
 
 		HSL_Shutdown();
 	}
 
-	void rebuildSensorList()
+	void fetchSensorList()
 	{
 		memset(&SensorList, 0, sizeof(HSLSensorList));
 		HSL_GetSensorList(&SensorList);
@@ -229,7 +248,7 @@ private:
 		printf("Found %d Sensors.\n", SensorList.count);
 		for (int sensor_index=0; sensor_index<SensorList.count; ++sensor_index) 
 		{
-			printf("  Sensor ID: %s\n", SensorList.Sensors[sensor_index].deviceFriendlyName);
+			printf("  Sensor ID: %s\n", SensorList.sensors[sensor_index].deviceInformation.deviceFriendlyName);
 		}
 	}
 

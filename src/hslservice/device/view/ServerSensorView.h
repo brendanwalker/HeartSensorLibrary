@@ -23,27 +23,37 @@ public:
 	void close() override;
 
 	// Sets which data streams from the device are active
-	// and which filter streams on the ServerSensorView are active
-	bool setActiveSensorDataStreams(
-		t_hsl_stream_bitmask data_stream_flags,
-		t_hrv_filter_bitmask filter_stream_bitmask);
+	bool setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags);
+
+	// Gets which data streams from the device are active
+	t_hsl_stream_bitmask getActiveSensorDataStreams() const;
+
+	// Sets which filter streams on the ServerSensorView are active
+	bool setActiveSensorFilterStreams(t_hrv_filter_bitmask filter_stream_bitmask);
+
+	// Gets which filter streams on the ServerSensorView are active
+	t_hrv_filter_bitmask getActiveSensorFilterStreams();
 
 	// Update Pose Filter using update packets from the tracker and IMU threads
 	void processDevicePacketQueues();
 
 	IDeviceInterface* getDevice() const override {return m_device;}
 
-    const std::string &getFriendlyName() const;
+    const std::string getFriendlyName() const;
 
 	// Returns the full usb device path for the sensor
-	const std::string &getDevicePath() const;
+	const std::string getDevicePath() const;
 
 	// Returns the "sensor_" + serial number for the sensor
 	std::string getConfigIdentifier() const;
 
     // Fill out the HSLSensor info struct
-    void fetchSensorInfo(HSLSensor *outSensorInfo) const;
+    void fetchSensorListEntry(HSLSensorListEntry *outSensorListEntry) const;
 
+	// Get the current heart rate value in beats per minute. All sensors support this feature.
+	uint16_t getHeartRateBPM() const;
+
+	// Accessors for the various history buffers for heart data and filter streams
 	inline CircularBuffer<HSLHeartRateFrame> *getHeartRateBuffer() const { return heartRateBuffer; }
 	inline CircularBuffer<HSLHeartECGFrame> *getHeartECGBuffer() const { return heartECGBuffer; }
 	inline CircularBuffer<HSLHeartPPGFrame> *getHeartPPGBuffer() const { return heartPPGBuffer; }
@@ -62,6 +72,7 @@ protected:
 	void free_device_interface() override;
 
 	void adjustSampleBufferCapacities();
+	void recomputeHeartRateBPM();
 
 private:
 	// Device State
@@ -91,8 +102,8 @@ private:
 	std::array<HRVFilterState, HRVFilter_COUNT> hrvFilters;
 	t_hrv_filter_bitmask m_activeFilterBitmask;
 
-	std::chrono::time_point<std::chrono::high_resolution_clock> m_lastFilterUpdateTimestamp;
-	bool m_bIsLastFilterUpdateTimestampValid;
+	std::chrono::time_point<std::chrono::high_resolution_clock> m_lastValidHRTimestamp;
+	uint16_t m_lastValidHR;
 };
 
 #endif // SERVER_SENSOR_VIEW_H

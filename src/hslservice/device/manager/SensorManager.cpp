@@ -15,6 +15,7 @@ const int SensorManagerConfig::CONFIG_VERSION = 1;
 SensorManagerConfig::SensorManagerConfig(const std::string &fnamebase)
 	: HSLConfig(fnamebase)
 	, version(SensorManagerConfig::CONFIG_VERSION)
+	, heartRateTimeoutMilliSeconds(3000)
 {
 
 };
@@ -22,7 +23,8 @@ SensorManagerConfig::SensorManagerConfig(const std::string &fnamebase)
 const configuru::Config SensorManagerConfig::writeToJSON()
 {
 	configuru::Config pt{
-		{"version", SensorManagerConfig::CONFIG_VERSION}
+		{"version", SensorManagerConfig::CONFIG_VERSION},
+		{"heart_rate_timeout_milliseconds", heartRateTimeoutMilliSeconds}
 	};
 
 	return pt;
@@ -34,6 +36,7 @@ void SensorManagerConfig::readFromJSON(const configuru::Config &pt)
 
 	if (version == SensorManagerConfig::CONFIG_VERSION)
 	{
+		heartRateTimeoutMilliSeconds= pt.get_or<int>("heart_rate_timeout_milliseconds", heartRateTimeoutMilliSeconds);
 	}
 	else
 	{

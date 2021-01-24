@@ -7,6 +7,7 @@
 #include "SensorDeviceEnumerator.h"
 #include "SensorBluetoothLEDeviceEnumerator.h"
 #include "Logger.h"
+#include "Utility.h"
 
 #ifdef _WIN32
 #define _USE_MATH_DEFINES
@@ -14,15 +15,12 @@
 #include <math.h>
 
 // -- PolarBluetoothLEDetails
-void PolarBluetoothLEDetails::reset()
+void PolarBluetoothInfo::reset()
 {
-	friendlyName= "";
-	devicePath= "";
 	deviceHandle= k_invalid_ble_device_handle;
 	gattProfile= nullptr;
 	bluetoothAddress= "";
 	memset(&deviceInfo, 0, sizeof(HSLDeviceInformation));
-	bodyLocation= "";
 }
 
 // -- Polar Sensor -----
@@ -84,11 +82,17 @@ bool PolarSensor::open(
     else
     {
 		// Remember the friendly name of the device
-		m_bluetoothLEDetails.friendlyName= sensorBluetoothLEEnum->getFriendlyName();
+		Utility::copyCString(
+			sensorBluetoothLEEnum->getFriendlyName().c_str(),
+			m_bluetoothLEDetails.deviceInfo.deviceFriendlyName, 
+			sizeof(m_bluetoothLEDetails.deviceInfo.deviceFriendlyName));
 
 		// Attempt to open device
         HSL_LOG_INFO("PolarSensor::open") << "Opening PolarSensor(" << cur_dev_path << ")";
-        m_bluetoothLEDetails.devicePath = cur_dev_path;
+		Utility::copyCString(
+			cur_dev_path.c_str(),
+			m_bluetoothLEDetails.deviceInfo.devicePath,
+			sizeof(m_bluetoothLEDetails.deviceInfo.devicePath));
 		m_bluetoothLEDetails.deviceHandle= bluetoothle_device_open(deviceBluetoothLEEnum, &m_bluetoothLEDetails.gattProfile);		
         if (!getIsOpen())
         {
@@ -112,11 +116,11 @@ bool PolarSensor::open(
 		}
 
 		// Load the config file (if it exists yet)
-		std::string config_suffix = m_bluetoothLEDetails.friendlyName;
+		std::string config_suffix = m_bluetoothLEDetails.deviceInfo.bodyLocation;
 		config_suffix.erase(std::remove(config_suffix.begin(), config_suffix.end(), ' '), config_suffix.end());
 		m_config = PolarSensorConfig(config_suffix);
 		m_config.load();
-		m_config.deviceName= m_bluetoothLEDetails.friendlyName;
+		m_config.deviceName= m_bluetoothLEDetails.deviceInfo.deviceFriendlyName;
 
 		if (!fetchDeviceInformation())
 		{
@@ -127,7 +131,10 @@ bool PolarSensor::open(
 		if (!fetchBodySensorLocation())
 		{
             HSL_LOG_WARNING("PolarSensor::open") << "No body sensor location available";
-			m_bluetoothLEDetails.bodyLocation = "Unknown";
+			Utility::copyCString( 
+				"Unknown",
+				m_bluetoothLEDetails.deviceInfo.bodyLocation,
+				sizeof(m_bluetoothLEDetails.deviceInfo.bodyLocation));
 		}
 
 		// Create the sensor processor thread
@@ -138,6 +145,12 @@ bool PolarSensor::open(
                 m_bluetoothLEDetails.deviceHandle,
                 m_bluetoothLEDetails.gattProfile,
                 m_sensorListener);
+		}
+
+		// Cache off the stream capabilities of the device
+		if (bSuccess)
+		{
+			bSuccess= m_packetProcessor->getStreamCapabilities(m_bluetoothLEDetails.deviceInfo.capabilities);
 		}
 
 		// Write back out the config if we got a valid bluetooth address
@@ -165,33 +178,39 @@ bool PolarSensor::fetchBodySensorLocation()
 	if (!value->getByte(location_enum))
 		return false;
 
+	HSLDeviceInformation &devInfo= m_bluetoothLEDetails.deviceInfo;
+
+	const char *szLocationName= nullptr;
 	switch (location_enum)
 	{
 	case 0:
-		m_bluetoothLEDetails.bodyLocation= "Other";
+		szLocationName= "Other";
 		break;
     case 1:
-        m_bluetoothLEDetails.bodyLocation = "Chest";
+        szLocationName = "Chest";
         break;
     case 2:
-        m_bluetoothLEDetails.bodyLocation = "Wrist";
+        szLocationName = "Wrist";
         break;
     case 3:
-        m_bluetoothLEDetails.bodyLocation = "Finger";
+        szLocationName = "Finger";
         break;
     case 4:
-        m_bluetoothLEDetails.bodyLocation = "Hand";
+        szLocationName = "Hand";
         break;
     case 5:
-        m_bluetoothLEDetails.bodyLocation = "Ear Lobe";
+        szLocationName = "Ear Lobe";
         break;
     case 6:
-        m_bluetoothLEDetails.bodyLocation = "Foot";
+        szLocationName = "Foot";
         break;
 	default:
-		m_bluetoothLEDetails.bodyLocation = "Unknown";
+		szLocationName = "Unknown";
 		break;
 	}
+
+	Utility::copyCString(szLocationName, devInfo.bodyLocation, sizeof(devInfo.bodyLocation));
+
 	return true;
 }
 
@@ -254,7 +273,7 @@ void PolarSensor::close()
 {
     if (getIsOpen())
     {
-        HSL_LOG_INFO("PolarSensor::close") << "Closing PolarSensor(" << m_bluetoothLEDetails.devicePath << ")";
+        HSL_LOG_INFO("PolarSensor::close") << "Closing PolarSensor(" << m_bluetoothLEDetails.deviceInfo.devicePath << ")";
 
 		if (m_packetProcessor != nullptr)
 		{
@@ -273,7 +292,7 @@ void PolarSensor::close()
     }
     else
     {
-        HSL_LOG_INFO("PolarSensor::close") << "PolarSensor(" << m_bluetoothLEDetails.devicePath << ") already closed. Ignoring request.";
+        HSL_LOG_INFO("PolarSensor::close") << "PolarSensor(" << m_bluetoothLEDetails.deviceInfo.devicePath << ") already closed. Ignoring request.";
     }
 }
 
@@ -286,6 +305,16 @@ bool PolarSensor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_fl
 	}
 
 	return false;
+}
+
+t_hsl_stream_bitmask PolarSensor::getActiveSensorDataStreams() const
+{
+	if (m_packetProcessor != nullptr)
+	{
+		return m_packetProcessor->getActiveSensorDataStreams();
+	}
+
+	return 0;
 }
 
 // Getters
@@ -301,20 +330,20 @@ bool PolarSensor::matchesDeviceEnumerator(const DeviceEnumerator *enumerator) co
 		const SensorBluetoothLEDeviceEnumerator *sensorBluetoothLEEnum = pEnum->getBluetoothLESensorEnumerator();
 		const std::string enumerator_path = pEnum->getPath();
 
-		matches = (enumerator_path == m_bluetoothLEDetails.devicePath);
+		matches = (enumerator_path == m_bluetoothLEDetails.deviceInfo.devicePath);
 	}
 
     return matches;
 }
 
-const std::string &PolarSensor::getFriendlyName() const
+const std::string PolarSensor::getFriendlyName() const
 {
-	return m_bluetoothLEDetails.friendlyName;
+	return m_bluetoothLEDetails.deviceInfo.deviceFriendlyName;
 }
 
-const std::string &PolarSensor::getDevicePath() const
+const std::string PolarSensor::getDevicePath() const
 {
-    return m_bluetoothLEDetails.devicePath;
+    return m_bluetoothLEDetails.deviceInfo.devicePath;
 }
 
 t_hsl_stream_bitmask PolarSensor::getSensorCapabilities() const
@@ -422,7 +451,7 @@ void PolarSensor::setHeartRateVariabliyHistorySize(int sample_count)
 	}
 }
 
-const std::string &PolarSensor::getBluetoothAddress() const
+const std::string PolarSensor::getBluetoothAddress() const
 {
     return m_bluetoothLEDetails.bluetoothAddress;
 }

@@ -24,12 +24,13 @@ ServerSensorView::ServerSensorView(const int device_id)
 	, m_sensorPacketQueue(1000)
 	, m_activeFilterBitmask(0)
 	, m_bIsLastSensorDataTimestampValid(false)
-	, m_bIsLastFilterUpdateTimestampValid(false)
 	, heartRateBuffer(new CircularBuffer<HSLHeartRateFrame>(10))
 	, heartECGBuffer(new CircularBuffer<HSLHeartECGFrame>(10))
 	, heartPPGBuffer(new CircularBuffer<HSLHeartPPGFrame>(10))
 	, heartPPIBuffer(new CircularBuffer<HSLHeartPPIFrame>(10))
 	, heartAccBuffer(new CircularBuffer<HSLAccelerometerFrame>(10))
+	, m_lastValidHRTimestamp(std::chrono::high_resolution_clock::now())
+	, m_lastValidHR(0)
 {
 	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 	{
@@ -166,21 +167,47 @@ void ServerSensorView::close()
 	ServerDeviceView::close();
 }
 
-bool ServerSensorView::setActiveSensorDataStreams(
-	t_hsl_stream_bitmask data_stream_flags,
-	t_hrv_filter_bitmask filter_stream_bitmask)
+bool ServerSensorView::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags)
 {
 	if (m_device != nullptr)
 	{
-		if (m_device->setActiveSensorDataStreams(data_stream_flags))
-		{
-			m_activeFilterBitmask = filter_stream_bitmask;
-
-			return true;
-		}
+		return m_device->setActiveSensorDataStreams(data_stream_flags);
 	}
 
 	return false;
+}
+
+t_hsl_stream_bitmask ServerSensorView::getActiveSensorDataStreams() const
+{
+	if (m_device != nullptr)
+	{
+		return m_device->getActiveSensorDataStreams();
+	}
+
+	return false;
+}
+
+
+bool ServerSensorView::setActiveSensorFilterStreams(t_hrv_filter_bitmask filter_stream_bitmask)
+{
+	if (m_device != nullptr)
+	{
+		m_activeFilterBitmask = filter_stream_bitmask;
+
+		return true;
+	}
+
+	return false;
+}
+
+t_hrv_filter_bitmask ServerSensorView::getActiveSensorFilterStreams()
+{
+	if (m_device != nullptr)
+	{
+		return m_activeFilterBitmask;
+	}
+
+	return 0;
 }
 
 void ServerSensorView::notifySensorDataReceived(const ISensorListener::SensorPacket *sensor_packet)
@@ -230,6 +257,9 @@ void ServerSensorView::processDevicePacketQueues()
 		}
 	}
 
+	// Find the latest valid heart rate valid from either the PPI buffer or the HR buffer
+	recomputeHeartRateBPM();
+
 	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 	{
 		CircularBuffer<HSLHeartVariabilityFrame> *hrvBuffer= hrvFilters[filter_index].hrvBuffer;
@@ -259,12 +289,12 @@ void ServerSensorView::processDevicePacketQueues()
 }
 
 // Returns the full device path for the sensor
-const std::string &ServerSensorView::getDevicePath() const
+const std::string ServerSensorView::getDevicePath() const
 {
 	return m_devicePath;
 }
 
-const std::string &ServerSensorView::getFriendlyName() const
+const std::string ServerSensorView::getFriendlyName() const
 {
     return m_friendlyName;
 }
@@ -284,33 +314,76 @@ std::string ServerSensorView::getConfigIdentifier() const
     return identifier;
 }
 
+void ServerSensorView::recomputeHeartRateBPM()
+{
+	uint16_t newHeartRate = 0;
+
+	if (m_device != nullptr)
+	{
+		const t_hsl_stream_bitmask data_stream_bitmask = m_device->getActiveSensorDataStreams();
+
+		// First try to find the most recent Pulse-to-Pulse-Interval derived HeartRate (only Polar sensors)
+		if (!heartPPIBuffer->isEmpty())
+		{
+			const size_t newestIndex = heartPPIBuffer->getWriteIndex();
+			const HSLHeartPPIFrame* PPIFrame = &heartPPIBuffer->getBuffer()[newestIndex];
+
+			for (int sampleIndex = 0; sampleIndex < PPIFrame->ppiSampleCount; ++sampleIndex)
+			{
+				const HSLHeartPPISample& PPISample = PPIFrame->ppiSamples[sampleIndex];
+
+				if (PPISample.beatsPerMinute > 0)
+				{
+					newHeartRate = PPISample.beatsPerMinute;
+				}
+			}
+		}
+
+		// Fall back to most recent generic HeartRate packet (all HR sensors)
+		if (newHeartRate == 0 && !heartRateBuffer->isEmpty())
+		{
+			const size_t newestIndex = heartRateBuffer->getWriteIndex();
+			const HSLHeartRateFrame* HRFrame = &heartRateBuffer->getBuffer()[newestIndex];
+
+			if (HRFrame->beatsPerMinute > 0)
+			{
+				newHeartRate = HRFrame->beatsPerMinute;
+			}
+		}
+	}
+
+	// Sometimes we get bubbles of 0 HR from the PPI data, 
+	// so we try to paper over these by holding onto the most recent non-zero value.
+	// If it has bee too long though, we throw out the preserved value.
+	if (newHeartRate > 0)
+	{
+		m_lastValidHRTimestamp= std::chrono::high_resolution_clock::now();
+		m_lastValidHR= newHeartRate;
+	}
+	else if (m_lastValidHR > 0)
+	{
+		const t_high_resolution_timepoint now = std::chrono::high_resolution_clock::now();
+		const auto age_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastValidHRTimestamp);
+		const int timeout= DeviceManager::getInstance()->getSensorManager()->getConfig().heartRateTimeoutMilliSeconds;
+
+		if (age_milliseconds.count() > timeout)
+		{
+			m_lastValidHR= 0;
+		}
+	}
+}
+
+uint16_t ServerSensorView::getHeartRateBPM() const
+{
+	return m_lastValidHR;
+}
+
 // Fill out the HSLSensor info struct
-void ServerSensorView::fetchSensorInfo(HSLSensor *outSensorInfo) const
+void ServerSensorView::fetchSensorListEntry(HSLSensorListEntry *outSensorListEntry) const
 {
     if (m_device != nullptr)
     {
-		outSensorInfo->sensorID = this->getDeviceID();
-
-		outSensorInfo->capabilities = m_device->getSensorCapabilities();
-		Utility::copyCString(
-			m_friendlyName.c_str(), outSensorInfo->deviceFriendlyName,
-			sizeof(outSensorInfo->deviceFriendlyName));
-		Utility::copyCString(
-			m_devicePath.c_str(), outSensorInfo->devicePath,
-			sizeof(outSensorInfo->devicePath));
-
-		m_device->getDeviceInformation(&outSensorInfo->deviceInformation);
-
-		//TODO?
-		// Dynamic Data
-		//t_hsl_stream_bitmask	active_streams;
-		//t_hrv_filter_bitmask	active_filters;
-		//int						outputSequenceNum;
-		//int						inputSequenceNum;
-		//long long				dataFrameLastReceivedTime;
-		//float					dataFrameAverageFPS;
-		//int						listenerCount;
-		//bool					isValid;
-		//bool					isConnected;
+		outSensorListEntry->sensorID = this->getDeviceID();
+		m_device->getDeviceInformation(&outSensorListEntry->deviceInformation);
     }
 }

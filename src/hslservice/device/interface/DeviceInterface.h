@@ -21,7 +21,7 @@ public:
 	virtual bool matchesDeviceEnumerator(const class DeviceEnumerator *enumerator) const = 0;
 
     // Returns the friendly name of the device
-    virtual const std::string &getFriendlyName() const = 0;
+    virtual const std::string getFriendlyName() const = 0;
 	
 	// Opens the HID device for the device at the given enumerator
 	virtual bool open(const class DeviceEnumerator *enumerator) = 0;
@@ -75,13 +75,16 @@ public:
 
 	// -- Getters
 	// Returns the full device path for the sensor
-	virtual const std::string &getDevicePath() const = 0;
+	virtual const std::string getDevicePath() const = 0;
 
 	// Returns the serial number for the sensor
-	virtual const std::string &getBluetoothAddress() const = 0;
+	virtual const std::string getBluetoothAddress() const = 0;
 
 	// Returns a bitmask of flags from HSLSensorDataStreamFlags
 	virtual t_hsl_stream_bitmask getSensorCapabilities() const = 0;
+
+	// Returns a bitmask of flags from HSLSensorDataStreamFlags
+	virtual t_hsl_stream_bitmask getActiveSensorDataStreams() const = 0;
 
 	// Fills in device info struct
 	virtual bool getDeviceInformation(HSLDeviceInformation *out_device_info) const = 0;

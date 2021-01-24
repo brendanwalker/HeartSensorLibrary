@@ -91,37 +91,53 @@ bool HSLClient::startup(
 
 void HSLClient::update()
 {
-	// Drop an unread messages from the previous call to update
-	m_message_queue.clear();
-}
-
-void HSLClient::process_messages()
-{
-	HSLEventMessage message;
-	while(poll_next_message(&message))
+	for (HSLSensorID sensor_id= 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)
 	{
-		// Only handle events
-		process_event_message(&message);
+		ServerSensorView* sensor_view = m_requestHandler->getServerSensorView(sensor_id);
+
+		if (sensor_view != nullptr && sensor_view->getIsOpen())
+		{
+			HSLClentSensorState& clientSensorState = m_clientSensors[sensor_id];
+			HSLSensor& sensor = clientSensorState.sensor;
+
+			sensor.beatsPerMinute= sensor_view->getHeartRateBPM();
+		}
 	}
 }
 
-bool HSLClient::poll_next_message(HSLEventMessage *message)
+void HSLClient::fetchMessagesFromServer()
+{
+	HSLEventMessage message;
+	while(fetchNextServerMessage(&message))
+	{
+		// Only handle events
+		processServerMessage(&message);
+	}
+}
+
+bool HSLClient::fetchNextServerMessage(HSLEventMessage *message)
 {
 	bool bHasMessage = false;
 
-	if (m_message_queue.size() > 0)
+	if (m_serverMessageQueue.size() > 0)
 	{
-		const HSLEventMessage &first = m_message_queue.front();
+		const HSLEventMessage &first = m_serverMessageQueue.front();
 
 		assert(message != nullptr);
 		memcpy(message, &first, sizeof(HSLEventMessage));
 
-		m_message_queue.pop_front();
+		m_serverMessageQueue.pop_front();
 
 		bHasMessage = true;
 	}
 
 	return bHasMessage;
+}
+
+void HSLClient::flushAllServerMessages()
+{
+	// Drop an unread messages from the previous call to update
+	m_serverMessageQueue.clear();
 }
 
 void HSLClient::shutdown()
@@ -130,7 +146,7 @@ void HSLClient::shutdown()
 	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
 
 	// Drop an unread messages from the previous call to update
-	m_message_queue.clear();
+	m_serverMessageQueue.clear();
 }
 
 // -- ClientHSLAPI Requests -----
@@ -143,7 +159,7 @@ bool HSLClient::setup_client_sensor_state(HSLSensorID sensor_id)
 		HSLClentSensorState &clientSensorState = m_clientSensors[sensor_id];
 		HSLSensor &sensor = clientSensorState.sensor;
 
-		ServerSensorView *sensor_view= m_requestHandler->get_sensor_view_or_null(sensor_id);
+		ServerSensorView *sensor_view= m_requestHandler->getServerSensorView(sensor_id);
 
 		memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
 		sensor.sensorID = sensor_id;
@@ -167,7 +183,7 @@ bool HSLClient::setup_client_sensor_state(HSLSensorID sensor_id)
 	return bSuccess;
 }
 
-HSLSensor* HSLClient::get_sensor_view(HSLSensorID sensor_id)
+HSLSensor* HSLClient::getClientSensorView(HSLSensorID sensor_id)
 {
 	return IS_VALID_SENSOR_INDEX(sensor_id) ? &m_clientSensors[sensor_id].sensor : nullptr;
 }
@@ -285,12 +301,12 @@ HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRa
 // INotificationListener
 void HSLClient::handle_notification(const HSLEventMessage &event)
 {
-	m_message_queue.push_back(event);
+	m_serverMessageQueue.push_back(event);
 }
 
 // Message Helpers
 //-----------------
-void HSLClient::process_event_message(
+void HSLClient::processServerMessage(
 	const HSLEventMessage *event_message)
 {
 	switch (event_message->event_type)

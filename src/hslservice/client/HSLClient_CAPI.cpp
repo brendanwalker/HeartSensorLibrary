@@ -61,24 +61,24 @@ bool HSL_Initialize(HSLLogSeverityLevel log_level)
 		}
 	}
 
-		if (result != true)
+	if (result != true)
+	{
+		if (g_HSL_service != nullptr)
 		{
-				if (g_HSL_service != nullptr)
-				{
-					g_HSL_service->shutdown();
-					delete g_HSL_service;
-					g_HSL_service= nullptr;
-				}
-
-				if (g_HSL_client != nullptr)
-				{
-					g_HSL_client->shutdown();
-					delete g_HSL_client;
-					g_HSL_client= nullptr;
-				}
+			g_HSL_service->shutdown();
+			delete g_HSL_service;
+			g_HSL_service = nullptr;
 		}
 
-		return result;
+		if (g_HSL_client != nullptr)
+		{
+			g_HSL_client->shutdown();
+			delete g_HSL_client;
+			g_HSL_client = nullptr;
+		}
+	}
+
+	return result;
 }
 
 bool HSL_GetVersionString(char *out_version_string, size_t max_version_string)
@@ -87,7 +87,7 @@ bool HSL_GetVersionString(char *out_version_string, size_t max_version_string)
 
 		if (g_HSL_client != nullptr)
 		{
-				result = g_HSL_service->getRequestHandler()->get_service_version(out_version_string, max_version_string);
+			result = g_HSL_service->getRequestHandler()->getServiceVersion(out_version_string, max_version_string);
 		}
 
 		return result;
@@ -117,49 +117,51 @@ bool HSL_Shutdown()
 		result= true;
 	}	
 
-		return result;
+	return result;
 }
 
 bool HSL_Update()
 {
-		bool result = false;
+	bool result = false;
 
-		if (HSL_UpdateNoPollEvents() == true)
-		{
-			// Process all events and responses
-			// Any incoming events become status flags we can poll (ex: pollHasConnectionStatusChanged)
-			g_HSL_client->process_messages();
+	// Do normal update stuff and generate server events
+	if (HSL_UpdateNoPollEvents() == true)
+	{
+		// Process all events.
+		// Any incoming events become status flags we can poll (ex: pollHasConnectionStatusChanged).
+		g_HSL_client->fetchMessagesFromServer();
 
-				result= true;
-		}
+		result= true;
+	}
 
-		return result;
+	return result;
 }
 
 bool HSL_UpdateNoPollEvents()
 {
-		bool result= false;
+	if (g_HSL_service != nullptr && g_HSL_client != nullptr)
+	{
+		// Flush any messages not processed from the previous update
+		g_HSL_client->flushAllServerMessages();
 
-		if (g_HSL_service != nullptr)
-		{
-			if (g_HSL_client != nullptr)
-			{
-				g_HSL_client->update();
+		// Update all the connected sensors
+		// Generate new server events (i.e. device list changed)
+		g_HSL_service->update();
 
-				result = true;
-			}
+		// Propagate sensor state to the client sensor views
+		g_HSL_client->update();
 
-			g_HSL_service->update();
-		}	
+		return true;
+	}
 
-		return result;
+	return false;
 }
 
-bool HSL_PollNextMessage(HSLEventMessage *message, size_t message_size)
+bool HSL_PollNextMessage(HSLEventMessage *message)
 {
 	// Poll events queued up by the call to g_HSL_client->update()
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->poll_next_message(message) ? true : false;
+		return g_HSL_client->fetchNextServerMessage(message) ? true : false;
 	else
 		return false;
 }
@@ -168,7 +170,7 @@ bool HSL_PollNextMessage(HSLEventMessage *message, size_t message_size)
 HSLSensor *HSL_GetSensor(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->get_sensor_view(sensor_id);
+		return g_HSL_client->getClientSensorView(sensor_id);
 	else
 		return nullptr;
 }
@@ -322,7 +324,7 @@ bool HSL_GetSensorList(HSLSensorList *out_sensor_list)
 
 	if (g_HSL_service != nullptr)
 	{
-		result= g_HSL_service->getRequestHandler()->get_sensor_list(out_sensor_list);
+		result= g_HSL_service->getRequestHandler()->getSensorList(out_sensor_list);
 	}
 		
 	return result;
@@ -330,27 +332,57 @@ bool HSL_GetSensorList(HSLSensorList *out_sensor_list)
 
 bool HSL_SetActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_flags,
-	t_hrv_filter_bitmask filter_stream_bitmask)
+	t_hsl_stream_bitmask data_stream_flags)
 {
 	bool result= false;
 
 	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		result= g_HSL_service->getRequestHandler()->setActiveSensorDataStreams(
-			sensor_id, data_stream_flags, filter_stream_bitmask);
+		result= g_HSL_service->getRequestHandler()->setActiveSensorDataStreams(sensor_id, data_stream_flags);
+
+		if (result)
+		{
+			HSLSensor *client_sensor= HSL_GetSensor(sensor_id);
+			assert(client_sensor != nullptr);
+
+			// Update the set of active data streams on the client sensor state
+			client_sensor->activeDataStreams= g_HSL_service->getRequestHandler()->getActiveSensorDataStreams(sensor_id);
+		}
 	}
 
 	return result;
 }
 
-bool HSL_StopAllSensorDataStreams(HSLSensorID sensor_id)
+bool HSL_SetActiveSensorFilterStreams(
+	HSLSensorID sensor_id,
+	t_hrv_filter_bitmask filter_stream_bitmask)
+{
+	bool result = false;
+
+	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		result = g_HSL_service->getRequestHandler()->setActiveSensorFilterStreams(sensor_id, filter_stream_bitmask);
+
+		if (result)
+		{
+			HSLSensor* client_sensor = HSL_GetSensor(sensor_id);
+			assert(client_sensor != nullptr);
+
+			// Update the set of active filter streams on the client sensor state
+			client_sensor->activeFilterStreams = g_HSL_service->getRequestHandler()->getActiveSensorFilterStreams(sensor_id);
+		}
+	}
+
+	return result;
+}
+
+bool HSL_StopAllSensorStreams(HSLSensorID sensor_id)
 {
 	bool result= false;
 
 	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		result= g_HSL_service->getRequestHandler()->stopAllActiveSensorDataStreams(sensor_id);
+		result= g_HSL_service->getRequestHandler()->stopAllActiveSensorStreams(sensor_id);
 	}
 
 	return result;

@@ -207,7 +207,7 @@ void DeviceTypeManager::send_device_list_changed_notification()
 	HSLEventMessage message;
 	message.event_type= static_cast<HSLEventType>(getListUpdatedResponseType());
 
-	HSLService::getInstance()->getRequestHandler()->publish_notification(message);
+	HSLService::getInstance()->getRequestHandler()->publishNotification(message);
 }
 
 bool DeviceTypeManager::can_poll_connected_devices()
