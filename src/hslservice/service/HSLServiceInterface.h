@@ -8,7 +8,7 @@
 class INotificationListener
 {
 public:
-	virtual void handle_notification(const HSLEventMessage &response) = 0;
+	virtual void handleNotification(const HSLEventMessage &response) = 0;
 };
 
 #endif  // PSVRPROTOCOL_INTERFACE_H

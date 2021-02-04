@@ -40,10 +40,12 @@ public:
 	HSLBufferIterator getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 		
 protected:
-	bool setup_client_sensor_state(HSLSensorID sensor_id);
+	bool initClientSensorState(HSLSensorID sensor_id);
+	void updateClientSensorState(HSLSensorID sensor_id, bool updateDeviceInformation);
+	void updateAllClientSensorStates(bool updateDeviceInformation);
 
 	// INotificationListener
-	virtual void handle_notification(const HSLEventMessage &response) override;
+	virtual void handleNotification(const HSLEventMessage &response) override;
 
 	// Message Helpers
 	//-----------------

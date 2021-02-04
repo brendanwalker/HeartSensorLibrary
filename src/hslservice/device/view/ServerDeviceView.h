@@ -30,8 +30,8 @@ public:
     { return m_lastNewDataTimestamp; }
         
 protected:
-    virtual bool allocate_device_interface(const class DeviceEnumerator *enumerator) = 0;
-    virtual void free_device_interface() = 0;
+    virtual bool allocateDeviceInterface(const class DeviceEnumerator *enumerator) = 0;
+    virtual void freeDeviceInterface() = 0;
     
     std::chrono::time_point<std::chrono::high_resolution_clock> m_lastNewDataTimestamp;
     

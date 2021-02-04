@@ -197,6 +197,7 @@ typedef struct
 	HSLDeviceInformation	deviceInformation;
 
 	// Dynamic Data
+	bool					isConnected;
 	uint16_t				beatsPerMinute;
 	t_hsl_stream_bitmask	activeDataStreams;
 	t_hrv_filter_bitmask	activeFilterStreams;

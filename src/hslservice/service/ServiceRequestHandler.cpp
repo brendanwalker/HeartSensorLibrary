@@ -48,7 +48,7 @@ void ServiceRequestHandler::shutdown()
 
 void ServiceRequestHandler::publishNotification(const HSLEventMessage &message)
 {
-    m_notificationListener->handle_notification(message);
+    m_notificationListener->handleNotification(message);
 }
 	
 // -- sensor requests -----
@@ -81,7 +81,8 @@ bool ServiceRequestHandler::getSensorList(HSLSensorList *out_sensor_list) const
         {
 			HSLSensorListEntry *sensor_list_entry = &out_sensor_list->sensors[out_sensor_list->count++];
 
-			sensor_view->fetchSensorListEntry(sensor_list_entry);
+			sensor_list_entry->sensorID= sensor_view->getDeviceID();
+			sensor_view->fetchDeviceInformation(&sensor_list_entry->deviceInformation);
         }
     }
 

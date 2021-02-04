@@ -40,6 +40,24 @@ struct HSLClentSensorState
 	CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer;
 
 	std::array<HSLClentFilterState, HRVFilter_COUNT> hrvFilters;
+
+	void clearSensorData()
+	{
+		HSLSensorID sensor_id= sensor.sensorID;
+		memset(&sensor, 0, sizeof(HSLSensor));
+		sensor.sensorID= sensor_id; // preserve the sensor id assigned in initClientSensorState()
+
+		heartRateBuffer->reset();
+		heartECGBuffer->reset();
+		heartPPGBuffer->reset();
+		heartPPIBuffer->reset();
+		heartAccBuffer->reset();
+
+		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
+		{
+			hrvFilters[filter_index].hrvBuffer->reset();
+		}
+	}
 };
 
 // -- methods -----
@@ -83,7 +101,7 @@ bool HSLClient::startup(
 	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
 	for (HSLSensorID sensor_id= 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)		
 	{
-		setup_client_sensor_state(sensor_id);
+		initClientSensorState(sensor_id);
 	}
 	
 	return success;
@@ -91,18 +109,7 @@ bool HSLClient::startup(
 
 void HSLClient::update()
 {
-	for (HSLSensorID sensor_id= 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)
-	{
-		ServerSensorView* sensor_view = m_requestHandler->getServerSensorView(sensor_id);
-
-		if (sensor_view != nullptr && sensor_view->getIsOpen())
-		{
-			HSLClentSensorState& clientSensorState = m_clientSensors[sensor_id];
-			HSLSensor& sensor = clientSensorState.sensor;
-
-			sensor.beatsPerMinute= sensor_view->getHeartRateBPM();
-		}
-	}
+	updateAllClientSensorStates(false);
 }
 
 void HSLClient::fetchMessagesFromServer()
@@ -125,6 +132,13 @@ bool HSLClient::fetchNextServerMessage(HSLEventMessage *message)
 
 		assert(message != nullptr);
 		memcpy(message, &first, sizeof(HSLEventMessage));
+
+		// Special handling for HSLEvent_SensorListUpdated
+		// Make sure to refresh all client sensor state when the sensor list changes
+		if (message->event_type == HSLEvent_SensorListUpdated)
+		{
+			updateAllClientSensorStates(true);			
+		}
 
 		m_serverMessageQueue.pop_front();
 
@@ -150,7 +164,7 @@ void HSLClient::shutdown()
 }
 
 // -- ClientHSLAPI Requests -----
-bool HSLClient::setup_client_sensor_state(HSLSensorID sensor_id)
+bool HSLClient::initClientSensorState(HSLSensorID sensor_id)
 {
 	bool bSuccess= false;
 
@@ -181,6 +195,42 @@ bool HSLClient::setup_client_sensor_state(HSLSensorID sensor_id)
 	}
 		
 	return bSuccess;
+}
+
+void HSLClient::updateClientSensorState(HSLSensorID sensor_id, bool updateDeviceInformation)
+{
+	ServerSensorView* sensor_view = m_requestHandler->getServerSensorView(sensor_id);
+
+	if (sensor_view != nullptr)
+	{
+		HSLClentSensorState& clientSensorState = m_clientSensors[sensor_id];
+		HSLSensor& sensor_capi = clientSensorState.sensor;
+		bool wasConnected= sensor_capi.isConnected;
+		bool isConnected= sensor_view->getIsOpen();
+
+		if (isConnected)
+		{
+			sensor_capi.isConnected = true;
+			sensor_capi.beatsPerMinute = sensor_view->getHeartRateBPM();
+
+			if (updateDeviceInformation)
+			{
+				sensor_view->fetchDeviceInformation(&sensor_capi.deviceInformation);
+			}
+		}
+		else if (wasConnected && !isConnected)
+		{
+			clientSensorState.clearSensorData();
+		}
+	}
+}
+
+void HSLClient::updateAllClientSensorStates(bool updateDeviceInformation)
+{
+	for (HSLSensorID sensor_id = 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)
+	{
+		updateClientSensorState(sensor_id, updateDeviceInformation);
+	}
 }
 
 HSLSensor* HSLClient::getClientSensorView(HSLSensorID sensor_id)
@@ -299,7 +349,7 @@ HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRa
 }
 
 // INotificationListener
-void HSLClient::handle_notification(const HSLEventMessage &event)
+void HSLClient::handleNotification(const HSLEventMessage &event)
 {
 	m_serverMessageQueue.push_back(event);
 }

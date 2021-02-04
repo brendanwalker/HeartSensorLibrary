@@ -52,7 +52,7 @@ ServerSensorView::~ServerSensorView()
 	}
 }
 
-bool ServerSensorView::allocate_device_interface(
+bool ServerSensorView::allocateDeviceInterface(
 		const class DeviceEnumerator *enumerator)
 {
 	std::string friendlyName= enumerator->getFriendlyName();
@@ -69,7 +69,7 @@ bool ServerSensorView::allocate_device_interface(
 	return m_device != nullptr;
 }
 
-void ServerSensorView::free_device_interface()
+void ServerSensorView::freeDeviceInterface()
 {
 
 	if (m_device != nullptr)
@@ -378,12 +378,13 @@ uint16_t ServerSensorView::getHeartRateBPM() const
 	return m_lastValidHR;
 }
 
-// Fill out the HSLSensor info struct
-void ServerSensorView::fetchSensorListEntry(HSLSensorListEntry *outSensorListEntry) const
+// Fill out the HSLDeviceInformation info struct
+bool ServerSensorView::fetchDeviceInformation(HSLDeviceInformation* out_device_info) const
 {
     if (m_device != nullptr)
     {
-		outSensorListEntry->sensorID = this->getDeviceID();
-		m_device->getDeviceInformation(&outSensorListEntry->deviceInformation);
+		return m_device->getDeviceInformation(out_device_info);
     }
+
+	return false;
 }

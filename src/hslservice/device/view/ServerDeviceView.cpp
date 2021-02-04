@@ -21,7 +21,7 @@ bool
 ServerDeviceView::open(const DeviceEnumerator *enumerator)
 {
 	// Attempt to allocate the device 
-	bool bSuccess= allocate_device_interface(enumerator);
+	bool bSuccess= allocateDeviceInterface(enumerator);
 	
 	// Attempt to open the device
 	if (bSuccess)
@@ -46,7 +46,7 @@ ServerDeviceView::close()
 	if (getIsOpen())
 	{
 		getDevice()->close();
-		free_device_interface();
+		freeDeviceInterface();
 	}
 }
 

@@ -47,8 +47,8 @@ public:
 	// Returns the "sensor_" + serial number for the sensor
 	std::string getConfigIdentifier() const;
 
-    // Fill out the HSLSensor info struct
-    void fetchSensorListEntry(HSLSensorListEntry *outSensorListEntry) const;
+    // Fill out the HSLDeviceInformation struct
+    bool fetchDeviceInformation(HSLDeviceInformation* out_device_info) const;
 
 	// Get the current heart rate value in beats per minute. All sensors support this feature.
 	uint16_t getHeartRateBPM() const;
@@ -68,8 +68,8 @@ public:
 	void notifySensorDataReceived(const ISensorListener::SensorPacket *sensorPacket) override;
 
 protected:
-	bool allocate_device_interface(const class DeviceEnumerator *enumerator) override;
-	void free_device_interface() override;
+	bool allocateDeviceInterface(const class DeviceEnumerator *enumerator) override;
+	void freeDeviceInterface() override;
 
 	void adjustSampleBufferCapacities();
 	void recomputeHeartRateBPM();
