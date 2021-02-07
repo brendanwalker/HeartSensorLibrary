@@ -24,20 +24,75 @@ typedef std::deque<HSLEventMessage> t_message_queue;
 // -- macros -----
 #define IS_VALID_SENSOR_INDEX(x) ((x) >= 0 && (x) < HSLSERVICE_MAX_SENSOR_COUNT)
 
-struct HSLClentFilterState
+template <typename t_buffer_type>
+void init_buffer_iterator(HSLSensorBufferType buffer_type, CircularBuffer<t_buffer_type>* circular_buffer, HSLBufferIterator* out_iterator);
+
+template <typename t_buffer_type>
+struct HSLClientBufferState
 {
-	CircularBuffer<HSLHeartVariabilityFrame> *hrvBuffer;
+	HSLSensorBufferType bufferType;
+	CircularBuffer<t_buffer_type> *buffer;
+	double newestSampleTime;
+
+	void init(HSLSensorBufferType buffer_type, size_t initial_capacity)
+	{
+		bufferType= buffer_type;
+		buffer = new CircularBuffer<t_buffer_type>(initial_capacity);
+		newestSampleTime = -1.0;
+	}
+
+	void dispose()
+	{
+		delete buffer;
+		buffer= nullptr;
+		newestSampleTime = -1.0;
+	}
+
+	void clearSensorData()
+	{
+		if (buffer != nullptr)
+		{
+			buffer->reset();
+		}
+	}
+
+	void copyLatestValues(CircularBuffer<t_buffer_type>& source_buffer)
+	{
+		// Make sure target buffer has the same capacity
+		if (buffer->getCapacity() != source_buffer.getCapacity())
+		{
+			buffer->setCapacity(source_buffer.getCapacity());
+		}
+
+		// Only copy over data the client hasn't seen before
+		HSLBufferIterator iter;
+		init_buffer_iterator(bufferType, &source_buffer, &iter);
+
+		while (HSL_IsBufferIteratorValid(&iter))
+		{
+			const t_buffer_type *data= (t_buffer_type *)HSL_BufferIteratorGetValueRaw(&iter);
+
+			if (data->timeInSeconds > newestSampleTime)
+			{
+				buffer->writeItem(*data);
+				newestSampleTime= data->timeInSeconds;
+			}
+
+			HSL_BufferIteratorNext(&iter);
+		}
+	}
 };
+using HSLClentFilterState= HSLClientBufferState<HSLHeartVariabilityFrame>;
 
 struct HSLClentSensorState
 {
 	HSLSensor sensor;
 
-	CircularBuffer<HSLHeartRateFrame> *heartRateBuffer;
-	CircularBuffer<HSLHeartECGFrame> *heartECGBuffer;
-	CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer;
-	CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer;
-	CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer;
+	HSLClientBufferState<HSLHeartRateFrame> heartRateBuffer;
+	HSLClientBufferState<HSLHeartECGFrame> heartECGBuffer;
+	HSLClientBufferState<HSLHeartPPGFrame> heartPPGBuffer;
+	HSLClientBufferState<HSLHeartPPIFrame> heartPPIBuffer;
+	HSLClientBufferState<HSLAccelerometerFrame> heartAccBuffer;
 
 	std::array<HSLClentFilterState, HRVFilter_COUNT> hrvFilters;
 
@@ -47,15 +102,15 @@ struct HSLClentSensorState
 		memset(&sensor, 0, sizeof(HSLSensor));
 		sensor.sensorID= sensor_id; // preserve the sensor id assigned in initClientSensorState()
 
-		heartRateBuffer->reset();
-		heartECGBuffer->reset();
-		heartPPGBuffer->reset();
-		heartPPIBuffer->reset();
-		heartAccBuffer->reset();
+		heartRateBuffer.clearSensorData();
+		heartECGBuffer.clearSensorData();
+		heartPPGBuffer.clearSensorData();
+		heartPPIBuffer.clearSensorData();
+		heartAccBuffer.clearSensorData();
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
-			hrvFilters[filter_index].hrvBuffer->reset();
+			hrvFilters[filter_index].clearSensorData();
 		}
 	}
 };
@@ -156,6 +211,12 @@ void HSLClient::flushAllServerMessages()
 
 void HSLClient::shutdown()
 {
+	// Free memory associated with the client circular buffers
+	for (HSLSensorID sensor_id = 0; sensor_id < HSLSERVICE_MAX_SENSOR_COUNT; ++sensor_id)
+	{
+		disposeClientSensorState(sensor_id);
+	}
+
 	// Zero out all client sensor state
 	memset(m_clientSensors, 0, sizeof(HSLClentSensorState)*HSLSERVICE_MAX_SENSOR_COUNT);
 
@@ -178,23 +239,49 @@ bool HSLClient::initClientSensorState(HSLSensorID sensor_id)
 		memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
 		sensor.sensorID = sensor_id;
 
-		clientSensorState.heartAccBuffer = sensor_view->getHeartAccBuffer();
-		clientSensorState.heartECGBuffer = sensor_view->getHeartECGBuffer();
-		clientSensorState.heartPPGBuffer = sensor_view->getHeartPPGBuffer();
-		clientSensorState.heartPPIBuffer = sensor_view->getHeartPPIBuffer();
-		clientSensorState.heartRateBuffer = sensor_view->getHeartRateBuffer();
+		clientSensorState.heartAccBuffer.init(HSLBufferType_AccData, sensor_view->getHeartAccBuffer()->getCapacity());
+		clientSensorState.heartECGBuffer.init(HSLBufferType_ECGData, sensor_view->getHeartECGBuffer()->getCapacity());
+		clientSensorState.heartPPGBuffer.init(HSLBufferType_PPGData, sensor_view->getHeartPPGBuffer()->getCapacity());
+		clientSensorState.heartPPIBuffer.init(HSLBufferType_PPIData, sensor_view->getHeartPPIBuffer()->getCapacity());
+		clientSensorState.heartRateBuffer.init(HSLBufferType_HRData, sensor_view->getHeartRateBuffer()->getCapacity());
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
 			HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
 
-			clientSensorState.hrvFilters[filter_index].hrvBuffer = sensor_view->getHeartHrvBuffer(filter);
+			clientSensorState.hrvFilters[filter_index].init(HSLBufferType_HRVData, sensor_view->getHeartHrvBuffer(filter)->getCapacity());
 		}
 
 		bSuccess = true;
 	}
 		
 	return bSuccess;
+}
+
+void HSLClient::disposeClientSensorState(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		HSLClentSensorState& clientSensorState = m_clientSensors[sensor_id];
+		HSLSensor& sensor = clientSensorState.sensor;
+
+		ServerSensorView* sensor_view = m_requestHandler->getServerSensorView(sensor_id);
+
+		clientSensorState.heartAccBuffer.dispose();
+		clientSensorState.heartECGBuffer.dispose();
+		clientSensorState.heartPPGBuffer.dispose();
+		clientSensorState.heartPPIBuffer.dispose();
+		clientSensorState.heartRateBuffer.dispose();
+
+		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
+		{
+			HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
+
+			clientSensorState.hrvFilters[filter_index].dispose();
+		}
+
+		memset(&clientSensorState, 0, sizeof(HSLClentSensorState));
+	}
 }
 
 void HSLClient::updateClientSensorState(HSLSensorID sensor_id, bool updateDeviceInformation)
@@ -211,8 +298,24 @@ void HSLClient::updateClientSensorState(HSLSensorID sensor_id, bool updateDevice
 		if (isConnected)
 		{
 			sensor_capi.isConnected = true;
+
+			// Copy BPM value from sensor
 			sensor_capi.beatsPerMinute = sensor_view->getHeartRateBPM();
 
+			// Copy latest sensor buffer values from the sensor view
+			clientSensorState.heartAccBuffer.copyLatestValues(*sensor_view->getHeartAccBuffer());
+			clientSensorState.heartECGBuffer.copyLatestValues(*sensor_view->getHeartECGBuffer());
+			clientSensorState.heartPPGBuffer.copyLatestValues(*sensor_view->getHeartPPGBuffer());
+			clientSensorState.heartPPIBuffer.copyLatestValues(*sensor_view->getHeartPPIBuffer());
+			clientSensorState.heartRateBuffer.copyLatestValues(*sensor_view->getHeartRateBuffer());
+			for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
+			{
+				HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
+
+				clientSensorState.hrvFilters[filter_index].copyLatestValues(*sensor_view->getHeartHrvBuffer(filter));
+			}
+
+			// fetch device information if this device just opened
 			if (updateDeviceInformation)
 			{
 				sensor_view->fetchDeviceInformation(&sensor_capi.deviceInformation);
@@ -265,7 +368,7 @@ HSLBufferIterator HSLClient::getHeartRateBuffer(HSLSensorID sensor_id)
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartRateFrame> *heartRateBuffer = m_clientSensors[sensor_id].heartRateBuffer;
+		CircularBuffer<HSLHeartRateFrame> *heartRateBuffer = m_clientSensors[sensor_id].heartRateBuffer.buffer;
 
 		init_buffer_iterator(HSLBufferType_HRData, heartRateBuffer, &iter);
 	}
@@ -280,7 +383,7 @@ HSLBufferIterator HSLClient::getHeartECGBuffer(HSLSensorID sensor_id)
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartECGFrame> *heartECGBuffer = m_clientSensors[sensor_id].heartECGBuffer;
+		CircularBuffer<HSLHeartECGFrame> *heartECGBuffer = m_clientSensors[sensor_id].heartECGBuffer.buffer;
 		
 		init_buffer_iterator(HSLBufferType_ECGData, heartECGBuffer, &iter);
 	}
@@ -295,7 +398,7 @@ HSLBufferIterator HSLClient::getHeartPPGBuffer(HSLSensorID sensor_id)
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer = m_clientSensors[sensor_id].heartPPGBuffer;
+		CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer = m_clientSensors[sensor_id].heartPPGBuffer.buffer;
 
 		init_buffer_iterator(HSLBufferType_PPGData, heartPPGBuffer, &iter);
 	}
@@ -310,7 +413,7 @@ HSLBufferIterator HSLClient::getHeartPPIBuffer(HSLSensorID sensor_id)
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer = m_clientSensors[sensor_id].heartPPIBuffer;
+		CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer = m_clientSensors[sensor_id].heartPPIBuffer.buffer;
 
 		init_buffer_iterator(HSLBufferType_PPIData, heartPPIBuffer, &iter);
 	}
@@ -325,7 +428,7 @@ HSLBufferIterator HSLClient::getHeartAccBuffer(HSLSensorID sensor_id)
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer = m_clientSensors[sensor_id].heartAccBuffer;
+		CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer = m_clientSensors[sensor_id].heartAccBuffer.buffer;
 
 		init_buffer_iterator(HSLBufferType_AccData, heartAccBuffer, &iter);
 	}
@@ -340,12 +443,78 @@ HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRa
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartVariabilityFrame> *hrvBuffer = m_clientSensors[sensor_id].hrvFilters[filter].hrvBuffer;
+		CircularBuffer<HSLHeartVariabilityFrame> *hrvBuffer = m_clientSensors[sensor_id].hrvFilters[filter].buffer;
 
 		init_buffer_iterator(HSLBufferType_HRVData, hrvBuffer, &iter);
 	}
 
 	return iter;
+}
+
+bool HSLClient::flushHeartRateBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].heartRateBuffer.clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushHeartECGBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].heartECGBuffer.clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushHeartPPGBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].heartPPGBuffer.clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushHeartPPIBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].heartPPIBuffer.clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushHeartAccBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].heartAccBuffer.clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].hrvFilters[filter].clearSensorData();
+		return true;
+	}
+
+	return false;
 }
 
 // INotificationListener

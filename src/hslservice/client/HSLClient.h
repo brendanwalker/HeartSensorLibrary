@@ -38,9 +38,16 @@ public:
 	HSLBufferIterator getHeartPPIBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartAccBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+	bool flushHeartRateBuffer(HSLSensorID sensor_id);
+	bool flushHeartECGBuffer(HSLSensorID sensor_id);
+	bool flushHeartPPGBuffer(HSLSensorID sensor_id);
+	bool flushHeartPPIBuffer(HSLSensorID sensor_id);
+	bool flushHeartAccBuffer(HSLSensorID sensor_id);
+	bool flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 		
 protected:
 	bool initClientSensorState(HSLSensorID sensor_id);
+	void disposeClientSensorState(HSLSensorID sensor_id);
 	void updateClientSensorState(HSLSensorID sensor_id, bool updateDeviceInformation);
 	void updateAllClientSensorStates(bool updateDeviceInformation);
 

@@ -160,6 +160,8 @@ private:
 						lastHRDataTimestamp= hrFrame->timeInSeconds;
 					}
 				}
+
+				HSL_FlushHeartRateBuffer(sensorID);
 			}
 
 			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPGData))
@@ -184,6 +186,8 @@ private:
 						lastPPGDataTimestamp= ppgFrame->timeInSeconds;
 					}
 				}
+
+				HSL_FlushHeartPPGBuffer(sensorID);
 			}
 
 			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPIData))
@@ -203,6 +207,8 @@ private:
 							   ppiSample.beatsPerMinute, ppiSample.pulseDuration, ppiSample.pulseDurationErrorEst);
 					}
 				}
+
+				HSL_FlushHeartPPIBuffer(sensorID);
 			}
 
 			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_AccData))
@@ -226,6 +232,8 @@ private:
 						lastAccDataTimestamp= accFrame->timeInSeconds;
 					}
 				}
+
+				HSL_FlushHeartAccBuffer(sensorID);
 			}
 		}
 	}

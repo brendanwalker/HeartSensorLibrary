@@ -232,6 +232,54 @@ HSLBufferIterator HSL_GetHeartHrvBuffer(
 		return CreateInvalidIterator();
 }
 
+bool HSL_FlushHeartRateBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartRateBuffer(sensor_id);
+	else
+		return false;
+}
+
+bool HSL_FlushHeartECGBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartECGBuffer(sensor_id);
+	else
+		return false;
+}
+
+bool HSL_FlushHeartPPGBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartPPGBuffer(sensor_id);
+	else
+		return false;
+}
+
+bool HSL_FlushHeartPPIBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartPPIBuffer(sensor_id);
+	else
+		return false;
+}
+
+bool HSL_FlushHeartAccBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartAccBuffer(sensor_id);
+	else
+		return false;
+}
+
+bool HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushHeartHrvBuffer(sensor_id, filter);
+	else
+		return false;
+}
+
 bool HSL_IsBufferIteratorValid(HSLBufferIterator *iterator)
 {
 	return iterator != nullptr && iterator->remaining > 0;
@@ -256,7 +304,7 @@ bool HSL_BufferIteratorNext(HSLBufferIterator *iterator)
 	return false;
 }
 
-static void * HSL_BufferIteratorGetValueRaw(HSLBufferIterator *iterator)
+void* HSL_BufferIteratorGetValueRaw(HSLBufferIterator *iterator)
 {
 	if (HSL_IsBufferIteratorValid(iterator))
 	{

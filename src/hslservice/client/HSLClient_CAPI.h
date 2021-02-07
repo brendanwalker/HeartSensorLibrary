@@ -354,12 +354,25 @@ HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartAccBuffer(HSLSensorID sensor_
 
 HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartRateBuffer(HSLSensorID sensor_id);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartECGBuffer(HSLSensorID sensor_id);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartPPGBuffer(HSLSensorID sensor_id);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartPPIBuffer(HSLSensorID sensor_id);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartAccBuffer(HSLSensorID sensor_id);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+
 HSL_PUBLIC_FUNCTION(bool) HSL_IsBufferIteratorValid(HSLBufferIterator *iterator);
 
 HSL_PUBLIC_FUNCTION(void) HSL_BufferIteratorReset(HSLBufferIterator* iterator);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_BufferIteratorNext(HSLBufferIterator *iterator);
 
+HSL_PUBLIC_FUNCTION(void *) HSL_BufferIteratorGetValueRaw(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartRateFrame *) HSL_BufferIteratorGetHRData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartECGFrame *) HSL_BufferIteratorGetECGData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartPPGFrame *) HSL_BufferIteratorGetPPGData(HSLBufferIterator *iterator);
