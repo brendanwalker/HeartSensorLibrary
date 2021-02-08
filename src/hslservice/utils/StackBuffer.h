@@ -69,6 +69,29 @@ public:
         }
     }
 
+    int32_t read24BitInt()
+    {
+		uint8_t raw_bytes[3] = {0x00, 0x00, 0x00};
+		readBytes(raw_bytes, 3);
+
+		int result = (
+			((0xFF & raw_bytes[2]) << 16) |
+			((0xFF & raw_bytes[1]) << 8) |
+			(0xFF & raw_bytes[0])
+        );
+
+		if ((result & 0x00800000) > 0)
+		{
+			result = (int32_t)((uint32_t)result | (uint32_t)0xFF000000);
+		}
+		else
+		{
+			result = (int32_t)((uint32_t)result & (uint32_t)0x00FFFFFF);
+		}
+
+		return result;
+    }
+
     char readChar()
     {
         return read<char>();

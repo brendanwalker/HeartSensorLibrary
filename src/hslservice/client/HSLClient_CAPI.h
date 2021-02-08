@@ -120,10 +120,10 @@ typedef struct
 // https://www.polar.com/blog/optical-heart-rate-tracking-polar/
 typedef struct
 {
-    uint32_t				ppgValue0;
-    uint32_t				ppgValue1;
-    uint32_t				ppgValue2;
-    uint32_t				ambient;
+    int32_t				ppgValue0;
+    int32_t				ppgValue1;
+    int32_t				ppgValue2;
+    int32_t				ambient;
 } HSLHeartPPGSample;
 
 typedef struct

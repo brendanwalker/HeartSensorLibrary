@@ -527,7 +527,7 @@ bool PolarPacketProcessor::startPPGStream(const PolarSensorConfig& config)
 
 	stream_settings.writeByte(0x00); // Setting Type: 0 = SAMPLE_RATE
 	stream_settings.writeByte(0x01); // 1 = array_count(1) 
-	stream_settings.writeShort((uint16_t)config.ecgSampleRate);
+	stream_settings.writeShort((uint16_t)config.ppgSampleRate);
 
 	stream_settings.writeByte(0x01); // Setting Type: 1 = RESOLUTION
 	stream_settings.writeByte(0x01); // 1 = array_count(1) 
@@ -785,7 +785,7 @@ void PolarPacketProcessor::OnReceivedPMDDataMTUPacket(BluetoothGattHandle attrib
 					const std::chrono::nanoseconds nanoseconds(timestamp - m_ppgStreamStartTimestamp);
 					const auto seconds = std::chrono::duration_cast<std::chrono::duration<double>>(nanoseconds);
 
-					if (packet_data.readByte() == 0x00) // 22-bit PPG frame type
+					if (packet_data.readByte() == 0x00) // 24-bit PPG frame type
 					{
 						int ppg_value_capacity = ARRAY_SIZE(packet.payload.ppgFrame.ppgSamples);
 
@@ -797,15 +797,10 @@ void PolarPacketProcessor::OnReceivedPMDDataMTUPacket(BluetoothGattHandle attrib
 							HSLHeartPPGSample ppgSample;
 							memset(&ppgSample, 0, sizeof(HSLHeartPPGSample));
 
-							uint8_t raw_ppg_bytes[4] = {0x00, 0x00, 0x00, 0x00};
-							packet_data.readBytes(raw_ppg_bytes, 3);
-							ppgSample.ppgValue0 = *((uint32_t*)raw_ppg_bytes);
-							packet_data.readBytes(raw_ppg_bytes, 3);
-							ppgSample.ppgValue1 = *((uint32_t*)raw_ppg_bytes);
-							packet_data.readBytes(raw_ppg_bytes, 3);
-							ppgSample.ppgValue2 = *((uint32_t*)raw_ppg_bytes);
-							packet_data.readBytes(raw_ppg_bytes, 3);
-							ppgSample.ambient = *((uint32_t*)raw_ppg_bytes);
+							ppgSample.ppgValue0 = packet_data.read24BitInt();
+							ppgSample.ppgValue1 = packet_data.read24BitInt();
+							ppgSample.ppgValue2 = packet_data.read24BitInt();
+							ppgSample.ambient = packet_data.read24BitInt();
 
 							packet.payload.ppgFrame.ppgSamples[packet.payload.ppgFrame.ppgSampleCount] = ppgSample;
 							packet.payload.ppgFrame.ppgSampleCount++;
