@@ -56,6 +56,12 @@ file(GLOB HSL_DEVICE_SENSORS_POLAR_SRC
 )
 source_group("Device\\Sensors\\Polar" FILES ${HSL_DEVICE_SENSORS_POLAR_SRC})
 
+file(GLOB HSL_DEVICE_SENSORS_ADAFRUIT_SRC
+    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/adafruit/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/device/sensors/adafruit/*.h"
+)
+source_group("Device\\Sensors\\Adafruit" FILES ${HSL_DEVICE_SENSORS_ADAFRUIT_SRC})
+
 file(GLOB HSL_DEVICE_VIEW_SRC
     "${CMAKE_CURRENT_LIST_DIR}/device/view/*.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/device/view/*.h"
@@ -82,6 +88,7 @@ set(HSL_SERVICE_SRC
 	${HSL_DEVICE_INT_SRC}
 	${HSL_DEVICE_SENSORS_SRC}
 	${HSL_DEVICE_SENSORS_POLAR_SRC}
+	${HSL_DEVICE_SENSORS_ADAFRUIT_SRC}
 	${HSL_DEVICE_MGR_SRC}
 	${HSL_DEVICE_VIEW_SRC}
 	${HSL_SERVICE_SRC} 
@@ -96,6 +103,7 @@ list(APPEND HSL_SERVICE_INCL_DIRS
 	${CMAKE_CURRENT_LIST_DIR}/device/interface
 	${CMAKE_CURRENT_LIST_DIR}/device/manager
 	${CMAKE_CURRENT_LIST_DIR}/device/sensors
+	${CMAKE_CURRENT_LIST_DIR}/device/sensors/adafruit
 	${CMAKE_CURRENT_LIST_DIR}/device/sensors/polar
 	${CMAKE_CURRENT_LIST_DIR}/device/view
 	${CMAKE_CURRENT_LIST_DIR}/platform

@@ -93,6 +93,7 @@ struct HSLClentSensorState
 	HSLClientBufferState<HSLHeartPPGFrame> heartPPGBuffer;
 	HSLClientBufferState<HSLHeartPPIFrame> heartPPIBuffer;
 	HSLClientBufferState<HSLAccelerometerFrame> heartAccBuffer;
+	HSLClientBufferState<HSLGalvanicSkinResponseFrame> gsrBuffer;
 
 	std::array<HSLClentFilterState, HRVFilter_COUNT> hrvFilters;
 
@@ -107,6 +108,7 @@ struct HSLClentSensorState
 		heartPPGBuffer.clearSensorData();
 		heartPPIBuffer.clearSensorData();
 		heartAccBuffer.clearSensorData();
+		gsrBuffer.clearSensorData();
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
@@ -308,6 +310,7 @@ void HSLClient::updateClientSensorState(HSLSensorID sensor_id, bool updateDevice
 			clientSensorState.heartPPGBuffer.copyLatestValues(*sensor_view->getHeartPPGBuffer());
 			clientSensorState.heartPPIBuffer.copyLatestValues(*sensor_view->getHeartPPIBuffer());
 			clientSensorState.heartRateBuffer.copyLatestValues(*sensor_view->getHeartRateBuffer());
+			clientSensorState.gsrBuffer.copyLatestValues(*sensor_view->getGalvanicSkinResponseBuffer());
 			for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 			{
 				HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
@@ -451,6 +454,21 @@ HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRa
 	return iter;
 }
 
+HSLBufferIterator HSLClient::getGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
+{
+	HSLBufferIterator iter;
+	HSL_BufferIteratorReset(&iter);
+
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		CircularBuffer<HSLGalvanicSkinResponseFrame>* gsrBuffer = m_clientSensors[sensor_id].gsrBuffer.buffer;
+
+		init_buffer_iterator(HSLBufferType_GSRData, gsrBuffer, &iter);
+	}
+
+	return iter;
+}
+
 bool HSLClient::flushHeartRateBuffer(HSLSensorID sensor_id)
 {
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
@@ -511,6 +529,17 @@ bool HSLClient::flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabity
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		m_clientSensors[sensor_id].hrvFilters[filter].clearSensorData();
+		return true;
+	}
+
+	return false;
+}
+
+bool HSLClient::flushGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
+{
+	if (IS_VALID_SENSOR_INDEX(sensor_id))
+	{
+		m_clientSensors[sensor_id].gsrBuffer.clearSensorData();
 		return true;
 	}
 

@@ -17,6 +17,7 @@
 #include <utility>
 
 // Devices
+#include <AdafruitSensor.h>
 #include <PolarSensor.h>
 
 //-- constants -----
@@ -127,6 +128,7 @@ bool DeviceManager::startup()
 	// Register device factory functions
 	registerDeviceFactory("Polar H10", PolarSensor::PolarSensorFactory);
 	registerDeviceFactory("Polar OH1", PolarSensor::PolarSensorFactory);
+	registerDeviceFactory("Bluefruit Feather52", AdafruitSensor::AdafruitSensorFactory);	
 
 	// Register for hotplug events if this platform supports them
 	int sensor_reconnect_interval = m_config->sensor_reconnect_interval;

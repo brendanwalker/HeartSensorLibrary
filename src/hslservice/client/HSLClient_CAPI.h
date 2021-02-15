@@ -55,7 +55,8 @@ typedef enum
     HSLBufferType_PPGData = 2,		///< Photoplethysmography Data (optical vessel measurement)
     HSLBufferType_PPIData = 3,		///< Pulse Internal (extracted from PPG)
     HSLBufferType_AccData = 4,		///< Accelerometer
-	HSLBufferType_HRVData = 5,		///< Heart Rate Variablility data 
+	HSLBufferType_HRVData = 5,		///< Heart Rate Variability data 
+	HSLBufferType_GSRData = 6,		///< Galvanic Skin Response data 
 
     HSLBufferType_COUNT
 } HSLSensorBufferType;
@@ -68,6 +69,7 @@ typedef enum
 	HSLStreamFlags_PPGData = 2,		///< Photoplethysmography Data (optical vessel measurement)
 	HSLStreamFlags_PPIData = 3,		///< Pulse Internal (extracted from PPG)
 	HSLStreamFlags_AccData = 4,		///< Accelerometer
+	HSLStreamFlags_GSRData = 5,		///< Galvanic Skin Response
 
 	HSLStreamFlags_COUNT
 } HSLSensorDataStreamFlags;
@@ -76,13 +78,13 @@ typedef unsigned int t_hsl_stream_bitmask;
 
 typedef enum
 {
-	HRVFilter_SDNN		= 0,	///< the standard deviation of NN intervals.Often calculated over a 24 - hour period.SDANN, the standard deviation of the average NN intervals calculated over short periods, usually 5 minutes.SDNN is therefore a measure of changes in heart rate due to cycles longer than 5 minutes.SDNN reflects all the cyclic components responsible for variability in the period of recording, therefore it represents total variability.
-	HRVFilter_RMSSD		= 1,	///< the square root of the mean of the squares of the successive differences between adjacent NNs.[36]
-	HRVFilter_SDSD		= 2,	///< the standard deviation of the successive differences between adjacent NNs.
-	HRVFilter_NN50		= 3,	///< the number of pairs of successive NNs that differ by more than 50 ms.
-	HRVFilter_pNN50		= 4,	///< the proportion of NN50 divided by total number of NNs.
-	HRVFilter_NN20		= 5,	///< the number of pairs of successive NNs that differ by more than 20 ms.
-	HRVFilter_pNN20		= 6,	///< the proportion of NN20 divided by total number of NNs.
+	HRVFilter_SDANN		= 0,	///< The standard deviation of the average NN intervals calculated over short periods, usually 5 minutes.
+	HRVFilter_RMSSD		= 1,	///< The square root of the mean of the squares of the successive differences between adjacent NNs.[36]
+	HRVFilter_SDSD		= 2,	///< The standard deviation of the successive differences between adjacent NNs.
+	HRVFilter_NN50		= 3,	///< The number of pairs of successive NNs that differ by more than 50 ms.
+	HRVFilter_pNN50		= 4,	///< The proportion of NN50 divided by total number of NNs.
+	HRVFilter_NN20		= 5,	///< The number of pairs of successive NNs that differ by more than 20 ms.
+	HRVFilter_pNN20		= 6,	///< The proportion of NN20 divided by total number of NNs.
 
 	HRVFilter_COUNT
 } HSLHeartRateVariabityFilterType;
@@ -164,6 +166,13 @@ typedef struct
 	float					hrvValue;
 	double					timeInSeconds;
 } HSLHeartVariabilityFrame;
+
+/// Galvanic Skin Response measurement
+typedef struct
+{
+	uint16_t				gsrValue; // (0-1023) for voltage in range of 0-5v
+	double					timeInSeconds;
+} HSLGalvanicSkinResponseFrame;
 
 /// Device strings 
 typedef struct
@@ -354,6 +363,8 @@ HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartAccBuffer(HSLSensorID sensor_
 
 HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
+
 HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartRateBuffer(HSLSensorID sensor_id);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartECGBuffer(HSLSensorID sensor_id);
@@ -365,6 +376,8 @@ HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartPPIBuffer(HSLSensorID sensor_id);
 HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartAccBuffer(HSLSensorID sensor_id);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
 
 HSL_PUBLIC_FUNCTION(bool) HSL_IsBufferIteratorValid(HSLBufferIterator *iterator);
 

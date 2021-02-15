@@ -31,7 +31,7 @@ public:
 	PolarSensor();
 	virtual ~PolarSensor();
 
-	// PSMoveController
+	// PolarSensor
 	bool open(); // Opens the first BluetoothLE device for the sensor
 
 	// -- IDeviceInterface
@@ -72,7 +72,7 @@ private:
     PolarSensorConfig m_config;
     PolarBluetoothInfo m_bluetoothLEDetails;
 
-    // HID Packet Processing
+    // Bluetooth LE Packet Processing
 	class PolarPacketProcessor* m_packetProcessor;
 	ISensorListener* m_sensorListener;
 };

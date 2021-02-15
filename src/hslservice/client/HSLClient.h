@@ -38,12 +38,14 @@ public:
 	HSLBufferIterator getHeartPPIBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartAccBuffer(HSLSensorID sensor_id);
 	HSLBufferIterator getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+	HSLBufferIterator getGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
 	bool flushHeartRateBuffer(HSLSensorID sensor_id);
 	bool flushHeartECGBuffer(HSLSensorID sensor_id);
 	bool flushHeartPPGBuffer(HSLSensorID sensor_id);
 	bool flushHeartPPIBuffer(HSLSensorID sensor_id);
 	bool flushHeartAccBuffer(HSLSensorID sensor_id);
 	bool flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+	bool flushGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
 		
 protected:
 	bool initClientSensorState(HSLSensorID sensor_id);

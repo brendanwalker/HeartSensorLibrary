@@ -232,6 +232,14 @@ HSLBufferIterator HSL_GetHeartHrvBuffer(
 		return CreateInvalidIterator();
 }
 
+HSLBufferIterator HSL_GetGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->getGalvanicSkinResponseBuffer(sensor_id);
+	else
+		return CreateInvalidIterator();
+}
+
 bool HSL_FlushHeartRateBuffer(HSLSensorID sensor_id)
 {
 	if (g_HSL_client != nullptr)
@@ -276,6 +284,14 @@ bool HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterT
 {
 	if (g_HSL_client != nullptr)
 		return g_HSL_client->flushHeartHrvBuffer(sensor_id, filter);
+	else
+		return false;
+}
+
+bool HSL_FlushGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
+{
+	if (g_HSL_client != nullptr)
+		return g_HSL_client->flushGalvanicSkinResponseBuffer(sensor_id);
 	else
 		return false;
 }

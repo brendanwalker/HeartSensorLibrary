@@ -43,7 +43,8 @@ public:
 		ECGFrame,
 		PPGFrame,
 		PPIFrame,
-		ACCFrame
+		ACCFrame,
+		GSRFrame
 	};
 
 	struct SensorPacket
@@ -54,6 +55,7 @@ public:
 			HSLHeartPPGFrame ppgFrame;
 			HSLHeartPPIFrame ppiFrame;
 			HSLAccelerometerFrame accFrame;
+			HSLGalvanicSkinResponseFrame gsrFrame;
 		} payload;
 		SensorPacketPayloadType payloadType;
 	};

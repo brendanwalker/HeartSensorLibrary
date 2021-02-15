@@ -59,6 +59,7 @@ public:
 	inline CircularBuffer<HSLHeartPPGFrame> *getHeartPPGBuffer() const { return heartPPGBuffer; }
 	inline CircularBuffer<HSLHeartPPIFrame> *getHeartPPIBuffer() const { return heartPPIBuffer; }
 	inline CircularBuffer<HSLAccelerometerFrame> *getHeartAccBuffer() const { return heartAccBuffer; }
+	inline CircularBuffer<HSLGalvanicSkinResponseFrame>* getGalvanicSkinResponseBuffer() const { return gsrBuffer; }
 	inline CircularBuffer<HSLHeartVariabilityFrame> *getHeartHrvBuffer(HSLHeartRateVariabityFilterType filter) const
 	{
 		return hrvFilters[filter].hrvBuffer;
@@ -94,6 +95,7 @@ private:
 	CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer;
 	CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer;
 	CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer;
+	CircularBuffer<HSLGalvanicSkinResponseFrame>* gsrBuffer;
 
 	struct HRVFilterState
 	{

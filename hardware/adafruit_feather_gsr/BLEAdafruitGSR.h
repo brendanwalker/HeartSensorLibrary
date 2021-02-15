@@ -34,7 +34,7 @@ class BLEAdafruitGSR : public BLEService
   public:
     static const uint8_t UUID128_GSR_SERVICE[16];
     static const uint8_t UUID128_GSR_CHARACTERISTIC_MEASUREMENT[16];
-    static const int DEFAULT_PERIOD = 1000;
+    static const int DEFAULT_PERIOD = 100;
 
     typedef void (*notify_callback_t)(uint16_t conn_hdl, bool enabled);
 

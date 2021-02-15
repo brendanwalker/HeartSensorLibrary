@@ -29,6 +29,7 @@ ServerSensorView::ServerSensorView(const int device_id)
 	, heartPPGBuffer(new CircularBuffer<HSLHeartPPGFrame>(10))
 	, heartPPIBuffer(new CircularBuffer<HSLHeartPPIFrame>(10))
 	, heartAccBuffer(new CircularBuffer<HSLAccelerometerFrame>(10))
+	, gsrBuffer(new CircularBuffer<HSLGalvanicSkinResponseFrame>(10))
 	, m_lastValidHRTimestamp(std::chrono::high_resolution_clock::now())
 	, m_lastValidHR(0)
 {
@@ -45,6 +46,7 @@ ServerSensorView::~ServerSensorView()
 	delete heartPPGBuffer;
 	delete heartPPIBuffer;
 	delete heartAccBuffer;
+	delete gsrBuffer;
 
 	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 	{
@@ -147,6 +149,14 @@ void ServerSensorView::adjustSampleBufferCapacities()
 		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
 		heartAccBuffer->setCapacity(samples_needed);
+	}
+
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_GSRData))
+	{
+		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_GSRData);
+		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+
+		gsrBuffer->setCapacity(samples_needed);
 	}
 
 	// We can compute HRV statistics if we either have ECG data or PPI data
@@ -254,6 +264,9 @@ void ServerSensorView::processDevicePacketQueues()
 		case ISensorListener::SensorPacketPayloadType::PPIFrame:
 			heartPPIBuffer->writeItem(packet.payload.ppiFrame);
 			break;
+		case ISensorListener::SensorPacketPayloadType::GSRFrame:
+			gsrBuffer->writeItem(packet.payload.gsrFrame);
+			break;
 		}
 	}
 
@@ -268,8 +281,8 @@ void ServerSensorView::processDevicePacketQueues()
 		{
 			// TODO: Update hrvBuffer
 			switch (filter_index)
-			{				 
-			case HRVFilter_SDNN:
+			{				
+			case HRVFilter_SDANN:
 				break;
 			case HRVFilter_RMSSD:
 				break;

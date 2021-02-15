@@ -18,7 +18,7 @@ typedef enum
     HSLLogSeverityLevel_fatal
 } HSLLogSeverityLevel;
 
-// See SensorManager.h in PSMoveService
+// See SensorManager.h 
 #define HSLSERVICE_MAX_SENSOR_COUNT  5
 
 // The max length of the service version string
