@@ -47,3 +47,13 @@ const BluetoothUUID g_Characteristic_BodySensorLocation_UUID("2A38");
 const BluetoothUUID *k_Characteristic_BodySensorLocation_UUID= &g_Characteristic_BodySensorLocation_UUID;
 const BluetoothUUID g_Characteristic_HeartRateControlPoint_UUID("2A39");
 const BluetoothUUID *k_Characteristic_HeartRateControlPoint_UUID= &g_Characteristic_HeartRateControlPoint_UUID;
+
+//-- Galvanic Skin Response Service --
+const BluetoothUUID g_Service_GSR_UUID("BCC80E00-5875-4884-A84B-E3EDF3598BF3");
+const BluetoothUUID *k_Service_GSR_UUID= &g_Service_GSR_UUID;
+const BluetoothUUID g_Characteristic_GSR_Measurement_UUID("BCC80E01-5875-4884-A84B-E3EDF3598BF3");
+const BluetoothUUID *k_Characteristic_GSR_Measurement_UUID= &g_Characteristic_GSR_Measurement_UUID;
+const BluetoothUUID g_Descriptor_GSR_Measurement_UUID("2902");
+const BluetoothUUID *k_Descriptor_GSR_Measurement_UUID= &g_Descriptor_GSR_Measurement_UUID;
+const BluetoothUUID g_Characteristic_GSR_Period_UUID("ADAF0001-C332-42A8-93BD-25E905756CB8");
+const BluetoothUUID *k_Characteristic_GSR_Period_UUID= &g_Characteristic_GSR_Period_UUID;

@@ -77,23 +77,25 @@ WinBluetoothUUID::WinBluetoothUUID(const BTH_LE_UUID &win_uuid) : BluetoothUUID(
 	{
 		const GUID &guid = win_uuid.Value.LongUuid;
 
-		std::ostringstream stringStream;
-		stringStream << std::hex;
-		stringStream << std::setfill('0');
-		stringStream << std::setw(8) << guid.Data1;
-		stringStream << "-";
-		stringStream << std::setw(4) << guid.Data2;
-		stringStream << "-";
-		stringStream << std::setw(4) << guid.Data3;
-		stringStream << "-";
-		stringStream << std::setw(2);
-		for (int i = 0; i < sizeof(guid.Data4); i++) {
+		const int MAX_BUF = 36 + 1;
+		char szBuffer[MAX_BUF];
+		int length = 0;
+		length += snprintf(szBuffer, 
+			(size_t)MAX_BUF, 
+			"%08x-%04x-%04x-", 
+			guid.Data1, guid.Data2, guid.Data3);
+
+		for (int i = 0; i < sizeof(guid.Data4); i++) 
+		{
 			if (i == 2)
-				stringStream << "-";
-			stringStream << static_cast<int>(guid.Data4[i]);
+			{
+				length += snprintf(szBuffer + length, (size_t)(MAX_BUF - length), "-");
+			}
+
+			length += snprintf(szBuffer + length, (size_t)(MAX_BUF - length), "%02x", guid.Data4[i]);
 		}
 
-		setUUID(stringStream.str());
+		setUUID(std::string(szBuffer));
 	}
 }
 

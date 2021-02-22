@@ -381,6 +381,14 @@ HSLHeartVariabilityFrame* HSL_BufferIteratorGetHRVData(HSLBufferIterator* iterat
         : nullptr;
 }
 
+HSLGalvanicSkinResponseFrame* HSL_BufferIteratorGetGSRData(HSLBufferIterator* iterator)
+{
+	return
+		(iterator->bufferType == HSLBufferType_GSRData)
+		? (HSLGalvanicSkinResponseFrame*)HSL_BufferIteratorGetValueRaw(iterator)
+		: nullptr;
+}
+
 /// Sensor Requests
 bool HSL_GetSensorList(HSLSensorList *out_sensor_list)
 {

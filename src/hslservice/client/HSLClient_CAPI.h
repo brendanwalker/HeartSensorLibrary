@@ -392,6 +392,7 @@ HSL_PUBLIC_FUNCTION(HSLHeartPPGFrame *) HSL_BufferIteratorGetPPGData(HSLBufferIt
 HSL_PUBLIC_FUNCTION(HSLHeartPPIFrame *) HSL_BufferIteratorGetPPIData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLAccelerometerFrame *) HSL_BufferIteratorGetAccData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartVariabilityFrame *) HSL_BufferIteratorGetHRVData(HSLBufferIterator *iterator);
+HSL_PUBLIC_FUNCTION(HSLGalvanicSkinResponseFrame *) HSL_BufferIteratorGetGSRData(HSLBufferIterator* iterator);
 
 // Sensor Requests
 /** \brief Requests a list of the streamable Sensors currently connected to HSLService.

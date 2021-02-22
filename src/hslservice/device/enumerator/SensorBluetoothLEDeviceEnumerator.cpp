@@ -106,7 +106,8 @@ bool SensorBluetoothLEDeviceEnumerator::testBLEEnumerator()
         BluetoothUUIDSet service_ids;
         bluetoothle_device_enumerator_get_service_ids(m_ble_enumerator, service_ids);
 
-		if (service_ids.containsUUID(*k_Service_HeartRate_UUID))
+		if (service_ids.containsUUID(*k_Service_HeartRate_UUID) ||
+			service_ids.containsUUID(*k_Service_GSR_UUID))
 		{
 			char BLEFriendlyName[256];
             char BLEPath[256];

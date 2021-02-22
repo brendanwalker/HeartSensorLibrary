@@ -21,10 +21,6 @@
 #include <vector>
 #include <thread>
 
-const BluetoothUUID k_Service_GSR_UUID("B9C80E00-5875-4884-A84B-E3EDF3598BF3");
-const BluetoothUUID k_Characteristic_GSR_Measurement_UUID("B9C80E01-5875-4884-A84B-E3EDF3598BF3");
-const BluetoothUUID k_Characteristic_GSR_Period_UUID("ADAF0001-C332-42A8-93BD-25E905756cB8");
-
 // -- AdafruitPacketProcessor
 AdafruitPacketProcessor::AdafruitPacketProcessor(const AdafruitSensorConfig& config)
 	: m_GATT_Profile(nullptr)
@@ -61,11 +57,11 @@ bool AdafruitPacketProcessor::start(t_bluetoothle_device_handle deviceHandle, BL
 	m_sensorListener = sensorListener;
 
 	// Galvanic Skin Response Service
-	m_GSR_Service = m_GATT_Profile->findService(k_Service_GSR_UUID);
+	m_GSR_Service = m_GATT_Profile->findService(*k_Service_GSR_UUID);
 	if (m_GSR_Service == nullptr)
 		return false;
 
-	m_GSRMeasurement_Characteristic = m_GSR_Service->findCharacteristic(k_Characteristic_GSR_Measurement_UUID);
+	m_GSRMeasurement_Characteristic = m_GSR_Service->findCharacteristic(*k_Characteristic_GSR_Measurement_UUID);
 	if (m_GSRMeasurement_Characteristic == nullptr)
 		return false;
 
@@ -73,7 +69,16 @@ bool AdafruitPacketProcessor::start(t_bluetoothle_device_handle deviceHandle, BL
 	if (m_GSRMeasurement_CharacteristicValue == nullptr)
 		return false;
 
-	m_GSRPeriod_Characteristic = m_GSR_Service->findCharacteristic(k_Characteristic_GSR_Period_UUID);
+	m_GSRMeasurement_Descriptor = m_GSRMeasurement_Characteristic->findDescriptor(*k_Descriptor_GSR_Measurement_UUID);
+	if (m_GSRMeasurement_Descriptor == nullptr)
+		return false;
+
+	m_GSRMeasurement_DescriptorValue = m_GSRMeasurement_Descriptor->getDescriptorValue();
+	if (m_GSRMeasurement_DescriptorValue == nullptr)
+		return false;
+
+
+	m_GSRPeriod_Characteristic = m_GSR_Service->findCharacteristic(*k_Characteristic_GSR_Period_UUID);
 	if (m_GSRPeriod_Characteristic == nullptr)
 		return false;
 
@@ -164,7 +169,7 @@ void AdafruitPacketProcessor::fetchStreamCapabilities()
 	// Reset the stream caps
 	m_streamCapabilitiesBitmask = 0;
 
-	if (m_config.deviceName.find("Bluefruit Feather52") == 0)
+	if (m_config.deviceName.find("Bluefruit52") == 0)
 	{
 		HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_GSRData);
 	}
@@ -184,14 +189,29 @@ void AdafruitPacketProcessor::startGalvanicSkinResponseStream()
 	if (!m_GSRPeriod_Characteristic->getIsWritable())
 		return;
 
-	int periodMs= 1000 / m_config.gsrSampleRate;
-	m_GSRPeriod_CharacteristicValue->setData((const uint8_t *)&periodMs, sizeof(int));
+	if (!m_GSRMeasurement_DescriptorValue->readDescriptorValue())
+		return;
+
+	BLEGattDescriptorValue::ClientCharacteristicConfiguration clientConfig;
+	if (!m_GSRMeasurement_DescriptorValue->getClientCharacteristicConfiguration(clientConfig))
+		return;
+
+	clientConfig.IsSubscribeToNotification = true;
+	if (!m_GSRMeasurement_DescriptorValue->setClientCharacteristicConfiguration(clientConfig))
+		return;
+
+	if (!m_GSRMeasurement_DescriptorValue->writeDescriptorValue())
+		return;
 
 	m_GSRCallbackHandle =
 		m_GSRMeasurement_Characteristic->registerChangeEvent(
 			std::bind(
 				&AdafruitPacketProcessor::OnReceivedGSRDataPacket, this,
 				std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+
+	// Set the refresh period
+	int periodMs = 1000 / m_config.gsrSampleRate;
+	m_GSRPeriod_CharacteristicValue->setData((const uint8_t*)&periodMs, sizeof(int));
 
 	// Time on Heart Rate samples are relative to stream start
 	m_gsrStreamStartTimestamp = std::chrono::high_resolution_clock::now();
@@ -202,6 +222,18 @@ void AdafruitPacketProcessor::startGalvanicSkinResponseStream()
 void AdafruitPacketProcessor::stopGalvanicSkinResponseStream()
 {
 	if (!m_bIsGSRNotificationEnabled)
+		return;
+
+	if (!m_GSRMeasurement_DescriptorValue->readDescriptorValue())
+		return;
+
+	BLEGattDescriptorValue::ClientCharacteristicConfiguration clientConfig;
+	clientConfig.IsSubscribeToNotification = false;
+
+	if (!m_GSRMeasurement_DescriptorValue->setClientCharacteristicConfiguration(clientConfig))
+		return;
+
+	if (!m_GSRMeasurement_DescriptorValue->writeDescriptorValue())
 		return;
 
 	if (m_GSRCallbackHandle != k_invalid_ble_gatt_event_handle)

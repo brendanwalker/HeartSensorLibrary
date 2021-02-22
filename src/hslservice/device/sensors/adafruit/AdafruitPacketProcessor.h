@@ -35,6 +35,8 @@ protected:
 	const class BLEGattService* m_GSR_Service;
 	class BLEGattCharacteristic* m_GSRMeasurement_Characteristic;
 	class BLEGattCharacteristicValue* m_GSRMeasurement_CharacteristicValue;
+	class BLEGattDescriptor* m_GSRMeasurement_Descriptor;
+	class BLEGattDescriptorValue* m_GSRMeasurement_DescriptorValue;
 	class BLEGattCharacteristic* m_GSRPeriod_Characteristic;
 	class BLEGattCharacteristicValue* m_GSRPeriod_CharacteristicValue;
 

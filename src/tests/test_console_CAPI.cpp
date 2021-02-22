@@ -90,6 +90,7 @@ private:
 			lastHRDataTimestamp= 0.0;
 			lastPPGDataTimestamp= 0.0;
 			lastAccDataTimestamp= 0.0;
+			lastGSRDataTimestamp= 0.0;
 		}
 
 		return success;
@@ -127,6 +128,10 @@ private:
 				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_HRData))
 				{
 					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
+				}
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_GSRData))
+				{
+					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_GSRData);
 				}
 
 				if (!HSL_SetActiveSensorDataStreams(SensorList.sensors[0].sensorID, data_stream_flags))
@@ -235,6 +240,24 @@ private:
 
 				HSL_FlushHeartAccBuffer(sensorID);
 			}
+
+			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_GSRData))
+			{
+				for (HSLBufferIterator iter = HSL_GetGalvanicSkinResponseBuffer(sensorID);
+					HSL_IsBufferIteratorValid(&iter);
+					HSL_BufferIteratorNext(&iter))
+				{
+					HSLGalvanicSkinResponseFrame *gsrData= HSL_BufferIteratorGetGSRData(&iter);
+
+					if (gsrData->timeInSeconds > lastGSRDataTimestamp)
+					{
+						printf("[GSR:%fs] %d\n", gsrData->timeInSeconds, gsrData->gsrValue);
+						lastGSRDataTimestamp = gsrData->timeInSeconds;
+					}
+				}
+
+				HSL_FlushHeartRateBuffer(sensorID);
+			}
 		}
 	}
 
@@ -265,6 +288,7 @@ private:
 	double lastHRDataTimestamp;
 	double lastPPGDataTimestamp;
 	double lastAccDataTimestamp;
+	double lastGSRDataTimestamp;
 	HSLSensorList SensorList;
 };
 

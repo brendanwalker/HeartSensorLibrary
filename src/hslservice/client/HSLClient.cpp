@@ -246,6 +246,7 @@ bool HSLClient::initClientSensorState(HSLSensorID sensor_id)
 		clientSensorState.heartPPGBuffer.init(HSLBufferType_PPGData, sensor_view->getHeartPPGBuffer()->getCapacity());
 		clientSensorState.heartPPIBuffer.init(HSLBufferType_PPIData, sensor_view->getHeartPPIBuffer()->getCapacity());
 		clientSensorState.heartRateBuffer.init(HSLBufferType_HRData, sensor_view->getHeartRateBuffer()->getCapacity());
+		clientSensorState.gsrBuffer.init(HSLBufferType_GSRData, sensor_view->getGalvanicSkinResponseBuffer()->getCapacity());
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
@@ -274,6 +275,7 @@ void HSLClient::disposeClientSensorState(HSLSensorID sensor_id)
 		clientSensorState.heartPPGBuffer.dispose();
 		clientSensorState.heartPPIBuffer.dispose();
 		clientSensorState.heartRateBuffer.dispose();
+		clientSensorState.gsrBuffer.dispose();
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
