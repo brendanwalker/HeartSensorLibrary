@@ -226,7 +226,10 @@ public:
 	WinBLEDeviceEnumerator()
 	{
 		buildBLEDeviceList();
-		buildBLEServiceInterfaceList();
+		if (m_bleDeviceList.size() > 0)
+		{
+			buildBLEServiceInterfaceList();
+		}
 
 		api_type= _BLEApiType_WinBLE;
 		BluetoothLEDeviceEnumerator::device_index= -1;
@@ -289,12 +292,25 @@ protected:
 					auto newDeviceInfo = std::make_unique<WinBLEDeviceInfo>();
 					const SP_DEVINFO_DATA &dev_info_data= dev_iter.getDeviceInfo();
 
+					// Fetch the device ID string
+					TCHAR dev_id[MAX_DEVICE_ID_LEN];
+					if (CM_Get_Device_ID(dev_info_data.DevInst, dev_id, ARRAY_SIZE(dev_id), 0) != CR_SUCCESS)
+					{
+						continue;
+					}
+					
+					// Skip any duplicate device entries
+					if (m_bleDeviceInstTable.find(std::string(dev_id)) != m_bleDeviceInstTable.end())
+					{
+						continue;
+					}
+
 					if (newDeviceInfo->init(dev_iter.getDeviceInfoSetHandle(), dev_iter.getDeviceInfo(), *iface_detail_data))
 					{
 						const int ble_device_list_index= (int)m_bleDeviceList.size();
 
 						m_bleDeviceList.push_back(std::move(newDeviceInfo));
-						m_bleDeviceInstTable.insert(std::make_pair(dev_info_data.DevInst, ble_device_list_index));
+						m_bleDeviceInstTable.insert(std::make_pair(std::string(dev_id), ble_device_list_index));
 					}
 				}
 			}
@@ -339,8 +355,14 @@ protected:
 						continue;
 					}
 
+					TCHAR parent_dev_id[MAX_DEVICE_ID_LEN];
+					if (CM_Get_Device_ID(parent_dev_instance, parent_dev_id, ARRAY_SIZE(parent_dev_id), 0) != CR_SUCCESS)
+					{
+						continue;
+					}
+
 					// Look up the parent device we found earlier
-					auto win_ble_dev_iter = m_bleDeviceInstTable.find(parent_dev_instance);
+					auto win_ble_dev_iter = m_bleDeviceInstTable.find(std::string(parent_dev_id));
 					if (win_ble_dev_iter != m_bleDeviceInstTable.end())
 					{
 						const int ble_device_list_index= win_ble_dev_iter->second;
@@ -356,7 +378,7 @@ protected:
 
 private:
 	std::vector<std::unique_ptr<WinBLEDeviceInfo>> m_bleDeviceList;
-	std::map<DEVINST, int> m_bleDeviceInstTable;
+	std::map<std::string, int> m_bleDeviceInstTable;
 };
 
 //-- WinBLEDeviceState -----

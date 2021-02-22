@@ -46,7 +46,7 @@ void Win32DeviceInfoIterator::next()
 }
 
 // -- Win32DeviceInterfaceIterator ----
-Win32DeviceInterfaceIterator::Win32DeviceInterfaceIterator(const Win32DeviceInfoIterator &dev_info_iterator)
+Win32DeviceInterfaceIterator::Win32DeviceInterfaceIterator(Win32DeviceInfoIterator &dev_info_iterator)
 	: m_devInfoIter(dev_info_iterator)
 	, m_interfaceDetailData(nullptr)
 	, m_deviceInterfaceIndex(-1)
@@ -80,11 +80,13 @@ void Win32DeviceInterfaceIterator::next()
 	if (isValid())
 	{
 		HDEVINFO device_info_set_handle= m_devInfoIter.getDeviceInfoSetHandle();
+		SP_DEVINFO_DATA& device_info_data= m_devInfoIter.getDeviceInfo();
+
 		++m_deviceInterfaceIndex;
 
 		if (SetupDiEnumDeviceInterfaces(
 				device_info_set_handle,
-				NULL,
+				&device_info_data,
 				&m_devInfoIter.getDeviceClassGUID(),
 				m_deviceInterfaceIndex,
 				&m_interfaceData) == TRUE)

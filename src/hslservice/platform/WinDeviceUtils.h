@@ -41,7 +41,7 @@ private:
 class Win32DeviceInterfaceIterator
 {
 public:
-	Win32DeviceInterfaceIterator(const Win32DeviceInfoIterator &dev_info_iterator);
+	Win32DeviceInterfaceIterator(Win32DeviceInfoIterator &dev_info_iterator);
 	virtual ~Win32DeviceInterfaceIterator();
 
 	bool isValid() const;
@@ -58,7 +58,7 @@ public:
 	}
 
 private:
-	const Win32DeviceInfoIterator &m_devInfoIter;
+	Win32DeviceInfoIterator &m_devInfoIter;
 	SP_DEVICE_INTERFACE_DATA m_interfaceData;
 	SP_DEVICE_INTERFACE_DETAIL_DATA *m_interfaceDetailData;
 	int m_deviceInterfaceIndex;
