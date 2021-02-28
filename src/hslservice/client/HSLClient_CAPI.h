@@ -117,6 +117,7 @@ typedef struct
 	uint32_t				ecgValues[10];		// microvolts
 	uint16_t				ecgValueCount;
 	double					timeInSeconds;
+	double					timeDeltaInSeconds;
 } HSLHeartECGFrame;
 
 // https://www.polar.com/blog/optical-heart-rate-tracking-polar/
@@ -133,6 +134,7 @@ typedef struct
 	HSLHeartPPGSample		ppgSamples[10];
 	uint16_t				ppgSampleCount;
 	double					timeInSeconds;
+	double					timeDeltaInSeconds;
 } HSLHeartPPGFrame;
 
 typedef struct
@@ -158,6 +160,7 @@ typedef struct
 	HSLVector3f				accSamples[5];	// g-units
 	uint16_t				accSampleCount;
 	double					timeInSeconds;
+	double					timeDeltaInSeconds;
 } HSLAccelerometerFrame;
 
 /// Derived Heart Rate

@@ -750,6 +750,7 @@ void PolarPacketProcessor::OnReceivedPMDDataMTUPacket(BluetoothGattHandle attrib
 
 						packet.payloadType = ISensorListener::SensorPacketPayloadType::ECGFrame;
 						packet.payload.ecgFrame.timeInSeconds = seconds.count();
+						packet.payload.ecgFrame.timeDeltaInSeconds= 1.0 / (double)m_config.ecgSampleRate;
 
 						while (packet_data.canRead())
 						{
@@ -791,6 +792,7 @@ void PolarPacketProcessor::OnReceivedPMDDataMTUPacket(BluetoothGattHandle attrib
 
 						packet.payloadType = ISensorListener::SensorPacketPayloadType::PPGFrame;
 						packet.payload.ppgFrame.timeInSeconds = seconds.count();
+						packet.payload.ppgFrame.timeDeltaInSeconds = 1.0 / (double)m_config.ppgSampleRate;
 
 						while (packet_data.canRead())
 						{
@@ -836,6 +838,7 @@ void PolarPacketProcessor::OnReceivedPMDDataMTUPacket(BluetoothGattHandle attrib
 
 						packet.payloadType = ISensorListener::SensorPacketPayloadType::ACCFrame;
 						packet.payload.accFrame.timeInSeconds = seconds.count();
+						packet.payload.accFrame.timeDeltaInSeconds = 1.0 / (double)m_config.accSampleRate;
 
 						while (packet_data.canRead())
 						{
