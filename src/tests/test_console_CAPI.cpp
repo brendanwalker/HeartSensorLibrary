@@ -90,7 +90,7 @@ private:
 			lastHRDataTimestamp= 0.0;
 			lastPPGDataTimestamp= 0.0;
 			lastAccDataTimestamp= 0.0;
-			lastGSRDataTimestamp= 0.0;
+			lastEDADataTimestamp= 0.0;
 		}
 
 		return success;
@@ -115,26 +115,26 @@ private:
 			{
 				const HSLSensorListEntry &listEntry= SensorList.sensors[0];
 
-				t_hsl_stream_bitmask data_stream_flags = 0;
+				t_hsl_caps_bitmask cap_flags = 0;
 
-				if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_ECGData))
+				if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLCapability_Electrocardiography))
 				{
-					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_ECGData);
+					HSL_BITMASK_SET_FLAG(cap_flags, HSLCapability_Electrocardiography);
 				}
-				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_PPGData))
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLCapability_Photoplethysmography))
 				{
-					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_PPGData);
+					HSL_BITMASK_SET_FLAG(cap_flags, HSLCapability_Photoplethysmography);
 				}
-				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_HRData))
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLCapability_HeartRate))
 				{
-					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_HRData);
+					HSL_BITMASK_SET_FLAG(cap_flags, HSLCapability_HeartRate);
 				}
-				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLStreamFlags_GSRData))
+				else if (HSL_BITMASK_GET_FLAG(listEntry.deviceInformation.capabilities, HSLCapability_ElectrodermalActivity))
 				{
-					HSL_BITMASK_SET_FLAG(data_stream_flags, HSLStreamFlags_GSRData);
+					HSL_BITMASK_SET_FLAG(cap_flags, HSLCapability_ElectrodermalActivity);
 				}
 
-				if (!HSL_SetActiveSensorDataStreams(SensorList.sensors[0].sensorID, data_stream_flags))
+				if (!HSL_SetActiveSensorCapabilityStreams(SensorList.sensors[0].sensorID, cap_flags))
 				{
 					m_keepRunning = false;
 				}
@@ -151,9 +151,9 @@ private:
 			const HSLSensorID sensorID= SensorList.sensors[0].sensorID;
 			const HSLSensor *sensor= HSL_GetSensor(sensorID);
 
-			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_HRData))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeSensorStreams, HSLCapability_HeartRate))
 			{
-				for (HSLBufferIterator iter= HSL_GetHeartRateBuffer(sensorID); 
+				for (HSLBufferIterator iter= HSL_GetCapabilityBuffer(sensorID, HSLCapability_HeartRate);
 					HSL_IsBufferIteratorValid(&iter);
 					HSL_BufferIteratorNext(&iter))
 				{
@@ -166,12 +166,12 @@ private:
 					}
 				}
 
-				HSL_FlushHeartRateBuffer(sensorID);
+				HSL_FlushCapabilityBuffer(sensorID, HSLCapability_HeartRate);
 			}
 
-			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPGData))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeSensorStreams, HSLCapability_Photoplethysmography))
 			{
-				for (HSLBufferIterator iter = HSL_GetHeartPPGBuffer(sensorID);
+				for (HSLBufferIterator iter = HSL_GetCapabilityBuffer(sensorID, HSLCapability_Photoplethysmography);
 					 HSL_IsBufferIteratorValid(&iter);
 					 HSL_BufferIteratorNext(&iter))
 				{
@@ -192,12 +192,12 @@ private:
 					}
 				}
 
-				HSL_FlushHeartPPGBuffer(sensorID);
+				HSL_FlushCapabilityBuffer(sensorID, HSLCapability_Photoplethysmography);
 			}
 
-			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_PPIData))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeSensorStreams, HSLCapability_PulseInterval))
 			{
-				for (HSLBufferIterator iter = HSL_GetHeartPPIBuffer(sensorID);
+				for (HSLBufferIterator iter = HSL_GetCapabilityBuffer(sensorID, HSLCapability_PulseInterval);
 					 HSL_IsBufferIteratorValid(&iter);
 					 HSL_BufferIteratorNext(&iter))
 				{
@@ -213,12 +213,12 @@ private:
 					}
 				}
 
-				HSL_FlushHeartPPIBuffer(sensorID);
+				HSL_FlushCapabilityBuffer(sensorID, HSLCapability_PulseInterval);
 			}
 
-			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_AccData))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeSensorStreams, HSLCapability_Accelerometer))
 			{
-				for (HSLBufferIterator iter = HSL_GetHeartAccBuffer(sensorID);
+				for (HSLBufferIterator iter = HSL_GetCapabilityBuffer(sensorID, HSLCapability_Accelerometer);
 					 HSL_IsBufferIteratorValid(&iter);
 					 HSL_BufferIteratorNext(&iter))
 				{
@@ -238,25 +238,25 @@ private:
 					}
 				}
 
-				HSL_FlushHeartAccBuffer(sensorID);
+				HSL_FlushCapabilityBuffer(sensorID, HSLCapability_Accelerometer);
 			}
 
-			if (HSL_BITMASK_GET_FLAG(sensor->activeDataStreams, HSLStreamFlags_GSRData))
+			if (HSL_BITMASK_GET_FLAG(sensor->activeSensorStreams, HSLCapability_ElectrodermalActivity))
 			{
-				for (HSLBufferIterator iter = HSL_GetGalvanicSkinResponseBuffer(sensorID);
+				for (HSLBufferIterator iter = HSL_GetCapabilityBuffer(sensorID, HSLCapability_ElectrodermalActivity);
 					HSL_IsBufferIteratorValid(&iter);
 					HSL_BufferIteratorNext(&iter))
 				{
-					HSLGalvanicSkinResponseFrame *gsrData= HSL_BufferIteratorGetGSRData(&iter);
+					HSLElectrodermalActivityFrame *edaData= HSL_BufferIteratorGetEDAData(&iter);
 
-					if (gsrData->timeInSeconds > lastGSRDataTimestamp)
+					if (edaData->timeInSeconds > lastEDADataTimestamp)
 					{
-						printf("[GSR:%fs] %d\n", gsrData->timeInSeconds, gsrData->gsrValue);
-						lastGSRDataTimestamp = gsrData->timeInSeconds;
+						printf("[EDA: %fs] %f%cS\n", edaData->timeInSeconds, edaData->conductanceMicroSiemens, 230);
+						lastEDADataTimestamp = edaData->timeInSeconds;
 					}
 				}
 
-				HSL_FlushHeartRateBuffer(sensorID);
+				HSL_FlushCapabilityBuffer(sensorID, HSLCapability_ElectrodermalActivity);
 			}
 		}
 	}
@@ -288,7 +288,7 @@ private:
 	double lastHRDataTimestamp;
 	double lastPPGDataTimestamp;
 	double lastAccDataTimestamp;
-	double lastGSRDataTimestamp;
+	double lastEDADataTimestamp;
 	HSLSensorList SensorList;
 };
 

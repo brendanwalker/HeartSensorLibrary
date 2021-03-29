@@ -296,7 +296,7 @@ void PolarSensor::close()
     }
 }
 
-bool PolarSensor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags)
+bool PolarSensor::setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags)
 {
 	if (m_packetProcessor != nullptr)
 	{
@@ -307,7 +307,7 @@ bool PolarSensor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_fl
 	return false;
 }
 
-t_hsl_stream_bitmask PolarSensor::getActiveSensorDataStreams() const
+t_hsl_caps_bitmask PolarSensor::getActiveSensorDataStreams() const
 {
 	if (m_packetProcessor != nullptr)
 	{
@@ -346,9 +346,9 @@ const std::string PolarSensor::getDevicePath() const
     return m_bluetoothLEDetails.deviceInfo.devicePath;
 }
 
-t_hsl_stream_bitmask PolarSensor::getSensorCapabilities() const
+t_hsl_caps_bitmask PolarSensor::getSensorCapabilities() const
 {
-	t_hsl_stream_bitmask bitmask = 0;
+	t_hsl_caps_bitmask bitmask = 0;
 
 	m_packetProcessor->getStreamCapabilities(bitmask);
 
@@ -366,41 +366,63 @@ bool PolarSensor::getDeviceInformation(HSLDeviceInformation* out_device_info) co
 	return false;
 }
 
-int PolarSensor::getCapabilitySampleRate(HSLSensorDataStreamFlags flag) const
+bool PolarSensor::getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate) const
 {
-	int sample_rate = 0;
-
-	switch (flag)
+	switch (cap_type)
 	{
-	case HSLStreamFlags_HRData:
-		sample_rate= 10; // This is just an average rate that we get the data back at
-		break;
-	case HSLStreamFlags_ECGData:
-		sample_rate = m_config.ecgSampleRate;
-		break;
-	case HSLStreamFlags_AccData:
-		sample_rate = m_config.accSampleRate;
-		break;
-	case HSLStreamFlags_PPGData:
-		sample_rate = m_config.ppgSampleRate;
-		break;
-	case HSLStreamFlags_PPIData:
-		sample_rate = 10; // This is just an average rate that we get the data back at
-		break;
+	case HSLCapability_HeartRate:
+		out_sampling_rate = 10; // This is just an average rate that we get the data back at
+		return true;
+	case HSLCapability_Electrocardiography:
+		out_sampling_rate = m_config.ecgSampleRate;
+		return true;
+	case HSLCapability_Accelerometer:
+		out_sampling_rate = m_config.accSampleRate;
+		return true;
+	case HSLCapability_Photoplethysmography:
+		out_sampling_rate = m_config.ppgSampleRate;
+		return true;
+	case HSLCapability_PulseInterval:
+		out_sampling_rate = 10; // This is just an average rate that we get the data back at
+		return true;
 	}
 
-	return sample_rate;
+	return false;
+}
+
+bool PolarSensor::getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution) const
+{
+	switch (cap_type)
+	{
+	case HSLCapability_HeartRate:
+		out_resolution = 8; 
+		return true;
+	case HSLCapability_Electrocardiography:
+		out_resolution = 14;
+		return true;
+	case HSLCapability_Accelerometer:
+		out_resolution = 16; //TODO: Configurable (8, 16, or 24)
+		return true;
+	case HSLCapability_Photoplethysmography:
+		out_resolution = 22;
+		return true;
+	case HSLCapability_PulseInterval:
+		out_resolution = 16;
+		return true;
+	}
+
+	return false;
 }
 
 void PolarSensor::getAvailableCapabilitySampleRates(
-	HSLSensorDataStreamFlags flag,
+	HSLSensorCapabilityType flag,
 	const int **out_rates, 
 	int *out_rate_count) const
 {
 	m_config.getAvailableCapabilitySampleRates(flag, out_rates, out_rate_count);
 }
 
-void PolarSensor::setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate)
+void PolarSensor::setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate)
 {
 	if (m_config.setCapabilitySampleRate(flag, sample_rate))
 	{

@@ -44,7 +44,7 @@ public:
 		PPGFrame,
 		PPIFrame,
 		ACCFrame,
-		GSRFrame
+		EDAFrame
 	};
 
 	struct SensorPacket
@@ -55,7 +55,7 @@ public:
 			HSLHeartPPGFrame ppgFrame;
 			HSLHeartPPIFrame ppiFrame;
 			HSLAccelerometerFrame accFrame;
-			HSLGalvanicSkinResponseFrame gsrFrame;
+			HSLElectrodermalActivityFrame edaFrame;
 		} payload;
 		SensorPacketPayloadType payloadType;
 	};
@@ -70,7 +70,7 @@ class ISensorInterface : public IDeviceInterface
 public:
 	// -- Mutators
 	// Set the active sensor data streams
-	virtual bool setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags) = 0;
+	virtual bool setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags) = 0;
 
 	// Assign an HMD listener to send HMD events to
 	virtual void setSensorListener(ISensorListener *listener) = 0;
@@ -83,22 +83,25 @@ public:
 	virtual const std::string getBluetoothAddress() const = 0;
 
 	// Returns a bitmask of flags from HSLSensorDataStreamFlags
-	virtual t_hsl_stream_bitmask getSensorCapabilities() const = 0;
+	virtual t_hsl_caps_bitmask getSensorCapabilities() const = 0;
 
 	// Returns a bitmask of flags from HSLSensorDataStreamFlags
-	virtual t_hsl_stream_bitmask getActiveSensorDataStreams() const = 0;
+	virtual t_hsl_caps_bitmask getActiveSensorDataStreams() const = 0;
 
 	// Fills in device info struct
 	virtual bool getDeviceInformation(HSLDeviceInformation *out_device_info) const = 0;
 
-	// Returns the current sample rate of the given capability
-	virtual int getCapabilitySampleRate(HSLSensorDataStreamFlags flag) const = 0;
+	// Get the sampling rate (in samples/sec) of the given capability type
+	virtual bool getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate) const = 0;
+
+	// Get the sampling resolution (in bits) of the given capability type
+	virtual bool getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution) const = 0;
 
 	// Returns all possible sample rate of the given capability
-	virtual void getAvailableCapabilitySampleRates(HSLSensorDataStreamFlags flag, const int **out_rates, int *out_rate_count) const = 0;
+	virtual void getAvailableCapabilitySampleRates(HSLSensorCapabilityType flag, const int **out_rates, int *out_rate_count) const = 0;
 
 	// Set the sample rate for the given capability
-	virtual void setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate) = 0;
+	virtual void setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate) = 0;
 
 	// Returns the sample recording history time (in seconds)
 	virtual float getSampleHistoryDuration() const = 0;

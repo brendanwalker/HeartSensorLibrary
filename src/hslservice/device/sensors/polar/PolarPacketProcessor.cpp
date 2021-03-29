@@ -144,15 +144,15 @@ void PolarPacketProcessor::stop()
 	if (!m_bIsRunning)
 		return;
 
-	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLStreamFlags_AccData))
+	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLCapability_Accelerometer))
 		stopAccStream();
-	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLStreamFlags_ECGData))
+	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLCapability_Electrocardiography))
 		stopECGStream();
-	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLStreamFlags_PPGData))
+	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLCapability_Photoplethysmography))
 		stopPPGStream();
-	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLStreamFlags_PPIData))
+	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLCapability_PulseInterval))
 		stopPPIStream();
-	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLStreamFlags_HRData))
+	if (HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, HSLCapability_HeartRate))
 		stopHeartRateStream();
 
 	m_streamActiveBitmask = 0;
@@ -164,7 +164,7 @@ void PolarPacketProcessor::stop()
 }
 
 // Called from main thread
-void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags)
+void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags)
 {
 	// Keep track of the streams being listened for
 	m_streamListenerBitmask= data_stream_flags;
@@ -172,9 +172,9 @@ void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_
 	// Process stream activation/deactivation requests
 	if (m_streamListenerBitmask != m_streamActiveBitmask)
 	{
-		for (int stream_index = 0; stream_index < HSLStreamFlags_COUNT; ++stream_index)
+		for (int stream_index = 0; stream_index < HSLCapability_COUNT; ++stream_index)
 		{
-			HSLSensorDataStreamFlags stream_flag = (HSLSensorDataStreamFlags)stream_index;
+			HSLSensorCapabilityType stream_flag = (HSLSensorCapabilityType)stream_index;
 			bool wants_active = HSL_BITMASK_GET_FLAG(m_streamListenerBitmask, stream_flag);
 			bool is_active = HSL_BITMASK_GET_FLAG(m_streamActiveBitmask, stream_flag);
 
@@ -186,19 +186,19 @@ void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_
 				{
 					switch (stream_flag)
 					{
-						case HSLStreamFlags_AccData:
+						case HSLCapability_Accelerometer:
 							startAccStream(m_config);
 							break;
-						case HSLStreamFlags_ECGData:
+						case HSLCapability_Electrocardiography:
 							startECGStream(m_config);
 							break;
-						case HSLStreamFlags_PPGData:
+						case HSLCapability_Photoplethysmography:
 							startPPGStream(m_config);
 							break;
-						case HSLStreamFlags_PPIData:
+						case HSLCapability_PulseInterval:
 							startPPIStream(m_config);
 							break;
-						case HSLStreamFlags_HRData:
+						case HSLCapability_HeartRate:
 							startHeartRateStream();
 							break;
 					}
@@ -208,19 +208,19 @@ void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_
 			{
 				switch (stream_flag)
 				{
-					case HSLStreamFlags_AccData:
+					case HSLCapability_Accelerometer:
 						stopAccStream();
 						break;
-					case HSLStreamFlags_ECGData:
+					case HSLCapability_Electrocardiography:
 						stopECGStream();
 						break;
-					case HSLStreamFlags_PPGData:
+					case HSLCapability_Photoplethysmography:
 						stopPPGStream();
 						break;
-					case HSLStreamFlags_PPIData:
+					case HSLCapability_PulseInterval:
 						stopPPIStream();
 						break;
-					case HSLStreamFlags_HRData:
+					case HSLCapability_HeartRate:
 						stopHeartRateStream();
 						break;
 				}
@@ -229,13 +229,13 @@ void PolarPacketProcessor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_
 	}
 }
 
-t_hsl_stream_bitmask PolarPacketProcessor::getActiveSensorDataStreams() const
+t_hsl_caps_bitmask PolarPacketProcessor::getActiveSensorDataStreams() const
 {
 	return m_streamListenerBitmask;
 }
 
 // Callable from either main thread or worker thread
-bool PolarPacketProcessor::getStreamCapabilities(t_hsl_stream_bitmask& outStreamCapabilitiesBitmask)
+bool PolarPacketProcessor::getStreamCapabilities(t_hsl_caps_bitmask& outStreamCapabilitiesBitmask)
 {
 	if (m_bIsRunning)
 	{
@@ -337,16 +337,16 @@ void PolarPacketProcessor::fetchStreamCapabilities()
 		const bool ppi_supported = HSL_BITMASK_GET_FLAG(feature_bitmask, 3);
 
 		if (ecg_supported)
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_ECGData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Electrocardiography);
 		if (ppg_supported)
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_PPGData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Photoplethysmography);
 		if (acc_supported)
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_AccData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Accelerometer);
 		if (ppi_supported)
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_PPIData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_PulseInterval);
 
 		// This is always supported
-		HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_HRData);
+		HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_HeartRate);
 	}
 	//TODO: This shouldn't be needed but sometimes this query fails.
 	// fallback to assuming capabilities based in device name.
@@ -355,19 +355,19 @@ void PolarPacketProcessor::fetchStreamCapabilities()
 		if (m_config.deviceName.find("Polar H10") == 0)
 		{
 			m_streamCapabilitiesBitmask = 0;
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_ECGData);
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_AccData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Electrocardiography);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Accelerometer);
 		}
 		else if (m_config.deviceName.find("Polar OH1") == 0)
 		{
 			m_streamCapabilitiesBitmask = 0;
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_PPGData);
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_AccData);
-			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_PPIData);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Photoplethysmography);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_Accelerometer);
+			HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_PulseInterval);
 		}
 
 		// Available in all cases
-		HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLStreamFlags_HRData);
+		HSL_BITMASK_SET_FLAG(m_streamCapabilitiesBitmask, HSLCapability_HeartRate);
 	}
 
 }

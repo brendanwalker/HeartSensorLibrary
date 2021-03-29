@@ -16,41 +16,41 @@ public:
 	void stop();
 
 	void setConfig(const AdafruitSensorConfig& config);
-	void setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags);
-	t_hsl_stream_bitmask getActiveSensorDataStreams() const;
+	void setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags);
+	t_hsl_caps_bitmask getActiveSensorDataStreams() const;
 
-	bool getStreamCapabilities(t_hsl_stream_bitmask& outStreamCapabilitiesBitmask);
+	bool getStreamCapabilities(t_hsl_caps_bitmask& outStreamCapabilitiesBitmask);
 
 protected:
 
 	void fetchStreamCapabilities();
 
-	void startGalvanicSkinResponseStream();
-	void stopGalvanicSkinResponseStream();
+	void startElectrodermalActivityStream();
+	void stopElectrodermalActivityStream();
 
-	void OnReceivedGSRDataPacket(BluetoothGattHandle attributeHandle, uint8_t* data, size_t data_size);
+	void OnReceivedEDADataPacket(BluetoothGattHandle attributeHandle, uint8_t* data, size_t data_size);
 
 	// GATT Profile cached vars
 	class BLEGattProfile* m_GATT_Profile;
-	const class BLEGattService* m_GSR_Service;
-	class BLEGattCharacteristic* m_GSRMeasurement_Characteristic;
-	class BLEGattCharacteristicValue* m_GSRMeasurement_CharacteristicValue;
-	class BLEGattDescriptor* m_GSRMeasurement_Descriptor;
-	class BLEGattDescriptorValue* m_GSRMeasurement_DescriptorValue;
-	class BLEGattCharacteristic* m_GSRPeriod_Characteristic;
-	class BLEGattCharacteristicValue* m_GSRPeriod_CharacteristicValue;
+	const class BLEGattService* m_EDA_Service;
+	class BLEGattCharacteristic* m_EDAMeasurement_Characteristic;
+	class BLEGattCharacteristicValue* m_EDAMeasurement_CharacteristicValue;
+	class BLEGattDescriptor* m_EDAMeasurement_Descriptor;
+	class BLEGattDescriptorValue* m_EDAMeasurement_DescriptorValue;
+	class BLEGattCharacteristic* m_EDAPeriod_Characteristic;
+	class BLEGattCharacteristicValue* m_EDAPeriod_CharacteristicValue;
 
 	// Stream State
 	t_bluetoothle_device_handle m_deviceHandle;
 	ISensorListener* m_sensorListener;
 	AdafruitSensorConfig m_config;
-	t_hsl_stream_bitmask m_streamCapabilitiesBitmask;
-	t_hsl_stream_bitmask m_streamListenerBitmask;
+	t_hsl_caps_bitmask m_streamCapabilitiesBitmask;
+	t_hsl_caps_bitmask m_streamListenerBitmask;
 	bool m_bIsRunning;
-	t_hsl_stream_bitmask m_streamActiveBitmask;
-	std::chrono::time_point<std::chrono::high_resolution_clock> m_gsrStreamStartTimestamp;
-	bool m_bIsGSRNotificationEnabled;
-	BluetoothEventHandle m_GSRCallbackHandle;
+	t_hsl_caps_bitmask m_streamActiveBitmask;
+	std::chrono::time_point<std::chrono::high_resolution_clock> m_edaStreamStartTimestamp;
+	bool m_bIsEDANotificationEnabled;
+	BluetoothEventHandle m_EDACallbackHandle;
 };
 
 #endif // ADAFRUIT_PACKET_PROCESSOR_H

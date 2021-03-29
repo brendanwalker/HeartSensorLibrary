@@ -33,7 +33,7 @@ int PolarSensorConfig::sanitizeSampleRate(int test_sample_rate, const int* sampl
 }
 
 void PolarSensorConfig::getAvailableCapabilitySampleRates(
-	HSLSensorDataStreamFlags flag,
+	HSLSensorCapabilityType flag,
 	const int** out_rates,
 	int* out_rate_count) const
 {
@@ -42,37 +42,37 @@ void PolarSensorConfig::getAvailableCapabilitySampleRates(
 
 	switch (flag)
 	{
-		case HSLStreamFlags_ECGData:
+		case HSLCapability_Electrocardiography:
 			*out_rates = k_available_ecg_sample_rates;
 			*out_rate_count = ARRAY_SIZE(k_available_ecg_sample_rates);
 			break;
-		case HSLStreamFlags_AccData:
+		case HSLCapability_Accelerometer:
 			*out_rates = k_available_acc_sample_rates;
 			*out_rate_count = ARRAY_SIZE(k_available_acc_sample_rates);
 			break;
-		case HSLStreamFlags_PPGData:
+		case HSLCapability_Photoplethysmography:
 			*out_rates = k_available_ppg_sample_rates;
 			*out_rate_count = ARRAY_SIZE(k_available_ppg_sample_rates);
 			break;
 	}
 }
 
-bool PolarSensorConfig::setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate)
+bool PolarSensorConfig::setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate)
 {
 	int new_config_value = 0;
 	int* config_value_ptr = nullptr;
 
 	switch (flag)
 	{
-		case HSLStreamFlags_ECGData:
+		case HSLCapability_Electrocardiography:
 			config_value_ptr = &ecgSampleRate;
 			new_config_value = sanitizeSampleRate(sample_rate, k_available_ecg_sample_rates);
 			break;
-		case HSLStreamFlags_AccData:
+		case HSLCapability_Accelerometer:
 			config_value_ptr = &accSampleRate;
 			new_config_value = sanitizeSampleRate(sample_rate, k_available_acc_sample_rates);
 			break;
-		case HSLStreamFlags_PPGData:
+		case HSLCapability_Photoplethysmography:
 			config_value_ptr = &ppgSampleRate;
 			new_config_value = sanitizeSampleRate(sample_rate, k_available_ppg_sample_rates);
 			break;

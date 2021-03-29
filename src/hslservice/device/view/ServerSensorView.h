@@ -23,16 +23,22 @@ public:
 	void close() override;
 
 	// Sets which data streams from the device are active
-	bool setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags);
+	bool setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags);
 
 	// Gets which data streams from the device are active
-	t_hsl_stream_bitmask getActiveSensorDataStreams() const;
+	t_hsl_caps_bitmask getActiveSensorDataStreams() const;
 
 	// Sets which filter streams on the ServerSensorView are active
 	bool setActiveSensorFilterStreams(t_hrv_filter_bitmask filter_stream_bitmask);
 
 	// Gets which filter streams on the ServerSensorView are active
 	t_hrv_filter_bitmask getActiveSensorFilterStreams();
+
+	// Get the sampling rate (in samples/sec) of the given capability type
+	bool getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate);
+
+	// Get the sampling resolution (in bits) of the given capability type
+	bool getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution);
 
 	// Update Pose Filter using update packets from the tracker and IMU threads
 	void processDevicePacketQueues();
@@ -59,7 +65,7 @@ public:
 	inline CircularBuffer<HSLHeartPPGFrame> *getHeartPPGBuffer() const { return heartPPGBuffer; }
 	inline CircularBuffer<HSLHeartPPIFrame> *getHeartPPIBuffer() const { return heartPPIBuffer; }
 	inline CircularBuffer<HSLAccelerometerFrame> *getHeartAccBuffer() const { return heartAccBuffer; }
-	inline CircularBuffer<HSLGalvanicSkinResponseFrame>* getGalvanicSkinResponseBuffer() const { return gsrBuffer; }
+	inline CircularBuffer<HSLElectrodermalActivityFrame>* getSkinEDABuffer() const { return skinEDABuffer; }
 	inline CircularBuffer<HSLHeartVariabilityFrame> *getHeartHrvBuffer(HSLHeartRateVariabityFilterType filter) const
 	{
 		return hrvFilters[filter].hrvBuffer;
@@ -95,7 +101,7 @@ private:
 	CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer;
 	CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer;
 	CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer;
-	CircularBuffer<HSLGalvanicSkinResponseFrame>* gsrBuffer;
+	CircularBuffer<HSLElectrodermalActivityFrame>* skinEDABuffer;
 
 	struct HRVFilterState
 	{

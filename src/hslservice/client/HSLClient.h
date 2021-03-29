@@ -32,20 +32,10 @@ public:
 
 	// -- Client HSL API Requests -----
 	HSLSensor* getClientSensorView(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartRateBuffer(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartECGBuffer(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartPPGBuffer(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartPPIBuffer(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartAccBuffer(HSLSensorID sensor_id);
-	HSLBufferIterator getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
-	HSLBufferIterator getGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
-	bool flushHeartRateBuffer(HSLSensorID sensor_id);
-	bool flushHeartECGBuffer(HSLSensorID sensor_id);
-	bool flushHeartPPGBuffer(HSLSensorID sensor_id);
-	bool flushHeartPPIBuffer(HSLSensorID sensor_id);
-	bool flushHeartAccBuffer(HSLSensorID sensor_id);
+	HSLBufferIterator getCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type);
+	HSLBufferIterator getHeartRateVariabilityBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
+	bool flushCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type);
 	bool flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
-	bool flushGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
 		
 protected:
 	bool initClientSensorState(HSLSensorID sensor_id);

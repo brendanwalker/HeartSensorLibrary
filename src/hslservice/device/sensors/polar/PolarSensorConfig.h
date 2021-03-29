@@ -15,8 +15,8 @@ public:
 	virtual void readFromJSON(const configuru::Config& pt);
 
 	static int sanitizeSampleRate(int test_sample_rate, const int* sample_rate_array);
-	void getAvailableCapabilitySampleRates(HSLSensorDataStreamFlags flag, const int** out_rates, int* out_rate_count) const;
-	bool setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate);
+	void getAvailableCapabilitySampleRates(HSLSensorCapabilityType flag, const int** out_rates, int* out_rate_count) const;
+	bool setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate);
 
 	bool isValid;
 	long version;

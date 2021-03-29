@@ -50,13 +50,15 @@ typedef enum
 /// Device data stream options
 typedef enum
 {
+	// Sensor Stream Buffer Types
     HSLBufferType_HRData  = 0,		///< Heart Rate (measured in BPM)
     HSLBufferType_ECGData = 1,		///< Electrocardiography (Electrical signal of the heart)
     HSLBufferType_PPGData = 2,		///< Photoplethysmography Data (optical vessel measurement)
     HSLBufferType_PPIData = 3,		///< Pulse Internal (extracted from PPG)
     HSLBufferType_AccData = 4,		///< Accelerometer
-	HSLBufferType_HRVData = 5,		///< Heart Rate Variability data 
-	HSLBufferType_GSRData = 6,		///< Galvanic Skin Response data 
+	HSLBufferType_EDAData = 5,		///< Electrodermal Activity (in microSiemens) 
+	// Filtered Data Buffer Types
+	HSLBufferType_HRVData = 6,		///< Heart Rate Variability data 
 
     HSLBufferType_COUNT
 } HSLSensorBufferType;
@@ -64,17 +66,17 @@ typedef enum
 /// Device data stream options
 typedef enum
 {
-	HSLStreamFlags_HRData = 0,		///< Heart Rate (measured in BPM)
-	HSLStreamFlags_ECGData = 1,		///< Electrocardiography (Electrical signal of the heart)
-	HSLStreamFlags_PPGData = 2,		///< Photoplethysmography Data (optical vessel measurement)
-	HSLStreamFlags_PPIData = 3,		///< Pulse Internal (extracted from PPG)
-	HSLStreamFlags_AccData = 4,		///< Accelerometer
-	HSLStreamFlags_GSRData = 5,		///< Galvanic Skin Response
+	HSLCapability_HeartRate = 0,				///< Heart Rate (measured in BPM)
+	HSLCapability_Electrocardiography = 1,		///< Electrocardiography (Electrical signal of the heart)
+	HSLCapability_Photoplethysmography = 2,		///< Photoplethysmography Data (optical vessel measurement)
+	HSLCapability_PulseInterval = 3,			///< Pulse Internal (extracted from PPG)
+	HSLCapability_Accelerometer = 4,			///< Accelerometer
+	HSLCapability_ElectrodermalActivity = 5,	///< Electrodermal Activity (in microSiemens) 
 
-	HSLStreamFlags_COUNT
-} HSLSensorDataStreamFlags;
+	HSLCapability_COUNT
+} HSLSensorCapabilityType;
 
-typedef unsigned int t_hsl_stream_bitmask;
+typedef unsigned int t_hsl_caps_bitmask;
 
 typedef enum
 {
@@ -170,12 +172,14 @@ typedef struct
 	double					timeInSeconds;
 } HSLHeartVariabilityFrame;
 
-/// Galvanic Skin Response measurement
+/// Skin Electrodermal Activity conductance/resistance measurement
 typedef struct
 {
-	uint16_t				gsrValue; // (0-1023) for voltage in range of 0-5v
+	uint16_t				adcValue; // (0-1023) value from sensor analog to digital converter
+	double					resistanceOhms; // adcValue converted to resistance value in ohms
+	double					conductanceMicroSiemens; // resistance converted to conductance in microSiemens
 	double					timeInSeconds;
-} HSLGalvanicSkinResponseFrame;
+} HSLElectrodermalActivityFrame;
 
 /// Device strings 
 typedef struct
@@ -198,7 +202,7 @@ typedef struct
 
 	// HSL Device Information
 	HSLSensorID				sensorID;
-	t_hsl_stream_bitmask	capabilities;
+	t_hsl_caps_bitmask		capabilities;
 } HSLDeviceInformation;
 
 /// Sensor Pool Entry
@@ -211,7 +215,7 @@ typedef struct
 	// Dynamic Data
 	bool					isConnected;
 	uint16_t				beatsPerMinute;
-	t_hsl_stream_bitmask	activeDataStreams;
+	t_hsl_caps_bitmask		activeSensorStreams;
 	t_hrv_filter_bitmask	activeFilterStreams;
 } HSLSensor;
 
@@ -354,38 +358,14 @@ HSL_PUBLIC_FUNCTION(bool) HSL_PollNextMessage(HSLEventMessage *out_message);
  */
 HSL_PUBLIC_FUNCTION(HSLSensor *) HSL_GetSensor(HSLSensorID sensor_id);
 
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartRateBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartECGBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartPPGBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartPPIBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartAccBuffer(HSLSensorID sensor_id);
-
+HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type);
 HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 
-HSL_PUBLIC_FUNCTION(HSLBufferIterator) HSL_GetGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartRateBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartECGBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartPPGBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartPPIBuffer(HSLSensorID sensor_id);
-
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartAccBuffer(HSLSensorID sensor_id);
-
+HSL_PUBLIC_FUNCTION(bool) HSL_FlushCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type);
 HSL_PUBLIC_FUNCTION(bool) HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter);
 
-HSL_PUBLIC_FUNCTION(bool) HSL_FlushGalvanicSkinResponseBuffer(HSLSensorID sensor_id);
-
 HSL_PUBLIC_FUNCTION(bool) HSL_IsBufferIteratorValid(HSLBufferIterator *iterator);
-
 HSL_PUBLIC_FUNCTION(void) HSL_BufferIteratorReset(HSLBufferIterator* iterator);
-
 HSL_PUBLIC_FUNCTION(bool) HSL_BufferIteratorNext(HSLBufferIterator *iterator);
 
 HSL_PUBLIC_FUNCTION(void *) HSL_BufferIteratorGetValueRaw(HSLBufferIterator *iterator);
@@ -394,8 +374,11 @@ HSL_PUBLIC_FUNCTION(HSLHeartECGFrame *) HSL_BufferIteratorGetECGData(HSLBufferIt
 HSL_PUBLIC_FUNCTION(HSLHeartPPGFrame *) HSL_BufferIteratorGetPPGData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartPPIFrame *) HSL_BufferIteratorGetPPIData(HSLBufferIterator *iterator);
 HSL_PUBLIC_FUNCTION(HSLAccelerometerFrame *) HSL_BufferIteratorGetAccData(HSLBufferIterator *iterator);
+HSL_PUBLIC_FUNCTION(HSLElectrodermalActivityFrame*) HSL_BufferIteratorGetEDAData(HSLBufferIterator* iterator);
 HSL_PUBLIC_FUNCTION(HSLHeartVariabilityFrame *) HSL_BufferIteratorGetHRVData(HSLBufferIterator *iterator);
-HSL_PUBLIC_FUNCTION(HSLGalvanicSkinResponseFrame *) HSL_BufferIteratorGetGSRData(HSLBufferIterator* iterator);
+
+HSL_PUBLIC_FUNCTION(bool) HSL_GetCapabilitySamplingRate(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type, int* out_sampling_rate);
+HSL_PUBLIC_FUNCTION(bool) HSL_GetCapabilityBitResolution(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type, int* out_resolution);
 
 // Sensor Requests
 /** \brief Requests a list of the streamable Sensors currently connected to HSLService.
@@ -405,7 +388,7 @@ HSL_PUBLIC_FUNCTION(HSLGalvanicSkinResponseFrame *) HSL_BufferIteratorGetGSRData
  */
 HSL_PUBLIC_FUNCTION(bool) HSL_GetSensorList(HSLSensorList *out_sensor_list);
 
-/** \brief Requests start/stop of a data streams for a given Sensor
+/** \brief Requests start/stop of a capability streams for a given Sensor
 	Asks HSLService to start or stop stream data for the given Sensor with the given set of stream properties.
 	The data in the associated \ref HSLSensor state will get updated automatically in calls to \ref HSL_Update or 
 	\ref HSL_UpdateNoPollMessages.
@@ -414,9 +397,9 @@ HSL_PUBLIC_FUNCTION(bool) HSL_GetSensorList(HSLSensorList *out_sensor_list);
 	\param data_stream_bitmask One or more of the flags from \ref HSLSensorDataStreamFlags
 	\return true upon receiving result or false on request error.
  */
-HSL_PUBLIC_FUNCTION(bool) HSL_SetActiveSensorDataStreams(
+HSL_PUBLIC_FUNCTION(bool) HSL_SetActiveSensorCapabilityStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_bitmask);
+	t_hsl_caps_bitmask data_stream_bitmask);
 
 /** \brief Requests start/stop of a data streams for a given Sensor
 	Asks HSLService to start or stop stream data for the given Sensor with the given set of stream properties.

@@ -29,7 +29,7 @@ ServerSensorView::ServerSensorView(const int device_id)
 	, heartPPGBuffer(new CircularBuffer<HSLHeartPPGFrame>(10))
 	, heartPPIBuffer(new CircularBuffer<HSLHeartPPIFrame>(10))
 	, heartAccBuffer(new CircularBuffer<HSLAccelerometerFrame>(10))
-	, gsrBuffer(new CircularBuffer<HSLGalvanicSkinResponseFrame>(10))
+	, skinEDABuffer(new CircularBuffer<HSLElectrodermalActivityFrame>(10))
 	, m_lastValidHRTimestamp(std::chrono::high_resolution_clock::now())
 	, m_lastValidHR(0)
 {
@@ -46,7 +46,7 @@ ServerSensorView::~ServerSensorView()
 	delete heartPPGBuffer;
 	delete heartPPIBuffer;
 	delete heartAccBuffer;
-	delete gsrBuffer;
+	delete skinEDABuffer;
 
 	for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 	{
@@ -109,59 +109,76 @@ void ServerSensorView::adjustSampleBufferCapacities()
 
 	// Allocate data buffers based on device capabilities
 	float sample_history_duration = m_device->getSampleHistoryDuration();
-	t_hsl_stream_bitmask caps_bitmask = m_device->getSensorCapabilities();
+	t_hsl_caps_bitmask caps_bitmask = m_device->getSensorCapabilities();
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_HRData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_HeartRate))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_HRData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
-
-		heartRateBuffer->setCapacity(samples_needed);
+		int sample_rate;
+		if (m_device->getCapabilitySamplingRate(HSLCapability_HeartRate, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+			heartRateBuffer->setCapacity(samples_needed);
+		}
 	}
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_Electrocardiography))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_ECGData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+		int sample_rate;
+		if (m_device->getCapabilitySamplingRate(HSLCapability_Electrocardiography, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
-		heartECGBuffer->setCapacity(samples_needed);
+			heartECGBuffer->setCapacity(samples_needed);
+		}
 	}
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPGData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_Photoplethysmography))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPGData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+		int sample_rate;
+		if (m_device->getCapabilitySamplingRate(HSLCapability_Photoplethysmography, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
-		heartPPGBuffer->setCapacity(samples_needed);
+			heartPPGBuffer->setCapacity(samples_needed);
+		}
 	}
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_PulseInterval))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_PPIData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+		int sample_rate;		
+		if (m_device->getCapabilitySamplingRate(HSLCapability_PulseInterval, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
-		heartPPIBuffer->setCapacity(samples_needed);
+			heartPPIBuffer->setCapacity(samples_needed);
+		}
 	}
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_AccData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_Accelerometer))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_AccData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+		int sample_rate;
+		if (m_device->getCapabilitySamplingRate(HSLCapability_Accelerometer, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
-		heartAccBuffer->setCapacity(samples_needed);
+			heartAccBuffer->setCapacity(samples_needed);
+		}
 	}
 
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_GSRData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_ElectrodermalActivity))
 	{
-		int sample_rate = m_device->getCapabilitySampleRate(HSLStreamFlags_GSRData);
-		int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
+		int sample_rate;
+		if (m_device->getCapabilitySamplingRate(HSLCapability_ElectrodermalActivity, sample_rate))
+		{
+			int samples_needed = compute_samples_needed(sample_rate, sample_history_duration);
 
-		gsrBuffer->setCapacity(samples_needed);
+			skinEDABuffer->setCapacity(samples_needed);
+		}
 	}
 
 	// We can compute HRV statistics if we either have ECG data or PPI data
-	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_ECGData) ||
-		HSL_BITMASK_GET_FLAG(caps_bitmask, HSLStreamFlags_PPIData))
+	if (HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_Electrocardiography) ||
+		HSL_BITMASK_GET_FLAG(caps_bitmask, HSLCapability_PulseInterval))
 	{
 		int hrv_samples_needed = m_device->getHeartRateVariabliyHistorySize();
 
@@ -177,7 +194,7 @@ void ServerSensorView::close()
 	ServerDeviceView::close();
 }
 
-bool ServerSensorView::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags)
+bool ServerSensorView::setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags)
 {
 	if (m_device != nullptr)
 	{
@@ -187,7 +204,7 @@ bool ServerSensorView::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stre
 	return false;
 }
 
-t_hsl_stream_bitmask ServerSensorView::getActiveSensorDataStreams() const
+t_hsl_caps_bitmask ServerSensorView::getActiveSensorDataStreams() const
 {
 	if (m_device != nullptr)
 	{
@@ -218,6 +235,26 @@ t_hrv_filter_bitmask ServerSensorView::getActiveSensorFilterStreams()
 	}
 
 	return 0;
+}
+
+bool ServerSensorView::getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate)
+{
+	if (m_device != nullptr)
+	{
+		return m_device->getCapabilitySamplingRate(cap_type, out_sampling_rate);
+	}
+
+	return false;
+}
+
+bool ServerSensorView::getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution)
+{
+	if (m_device != nullptr)
+	{
+		return m_device->getCapabilityBitResolution(cap_type, out_resolution);
+	}
+
+	return false;
 }
 
 void ServerSensorView::notifySensorDataReceived(const ISensorListener::SensorPacket *sensor_packet)
@@ -264,8 +301,8 @@ void ServerSensorView::processDevicePacketQueues()
 		case ISensorListener::SensorPacketPayloadType::PPIFrame:
 			heartPPIBuffer->writeItem(packet.payload.ppiFrame);
 			break;
-		case ISensorListener::SensorPacketPayloadType::GSRFrame:
-			gsrBuffer->writeItem(packet.payload.gsrFrame);
+		case ISensorListener::SensorPacketPayloadType::EDAFrame:
+			skinEDABuffer->writeItem(packet.payload.edaFrame);
 			break;
 		}
 	}
@@ -333,7 +370,7 @@ void ServerSensorView::recomputeHeartRateBPM()
 
 	if (m_device != nullptr)
 	{
-		const t_hsl_stream_bitmask data_stream_bitmask = m_device->getActiveSensorDataStreams();
+		const t_hsl_caps_bitmask data_stream_bitmask = m_device->getActiveSensorDataStreams();
 
 		// First try to find the most recent Pulse-to-Pulse-Interval derived HeartRate (only Polar sensors)
 		if (!heartPPIBuffer->isEmpty())

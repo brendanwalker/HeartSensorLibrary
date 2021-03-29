@@ -42,15 +42,16 @@ public:
 	virtual void close() override;
 
 	// -- ISensorInterface
-	virtual bool setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags) override;
-	virtual t_hsl_stream_bitmask getActiveSensorDataStreams() const override;
+	virtual bool setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags) override;
+	virtual t_hsl_caps_bitmask getActiveSensorDataStreams() const override;
     virtual const std::string getDevicePath() const override;
     virtual const std::string getBluetoothAddress() const override;
-	virtual t_hsl_stream_bitmask getSensorCapabilities() const override;
+	virtual t_hsl_caps_bitmask getSensorCapabilities() const override;
 	virtual bool getDeviceInformation(HSLDeviceInformation *out_device_info) const override;
-	virtual int getCapabilitySampleRate(HSLSensorDataStreamFlags flag) const;
-	virtual void getAvailableCapabilitySampleRates(HSLSensorDataStreamFlags flag, const int **out_rates, int *out_rate_count) const;
-	virtual void setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate);
+	virtual bool getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate) const override;
+	virtual bool getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution) const override;
+	virtual void getAvailableCapabilitySampleRates(HSLSensorCapabilityType flag, const int **out_rates, int *out_rate_count) const;
+	virtual void setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate);
 	virtual float getSampleHistoryDuration() const override;
 	virtual void setSampleHistoryDuration(float duration) override;
 	virtual int getHeartRateVariabliyHistorySize() const override;

@@ -7,14 +7,14 @@
 // Simply adding or removing a field is ok and doesn't require a version bump.
 const int AdafruitSensorConfig::CONFIG_VERSION = 1;
 
-const int k_available_gsr_sample_rates[] = { 10 };
+const int k_available_eda_sample_rates[] = { 10 };
 
 AdafruitSensorConfig::AdafruitSensorConfig(const std::string& fnamebase)
 	: HSLConfig(fnamebase)
 	, isValid(false)
 	, version(CONFIG_VERSION)
 	, sampleHistoryDuration(1.f)
-	, gsrSampleRate(10)
+	, edaSampleRate(10)
 {
 };
 
@@ -26,7 +26,7 @@ const configuru::Config AdafruitSensorConfig::writeToJSON()
 		{"version", AdafruitSensorConfig::CONFIG_VERSION},
 		{"device_name", deviceName},
 		{"sample_history_duration", sampleHistoryDuration},
-		{"gsr_sample_rate", gsrSampleRate}
+		{"eda_sample_rate", edaSampleRate}
 	};
 
 	return pt;
@@ -42,7 +42,7 @@ void AdafruitSensorConfig::readFromJSON(const configuru::Config& pt)
 
 		deviceName = pt.get_or<std::string>("device_name", "unknown");
 		sampleHistoryDuration = pt.get_or<float>("sample_history_duration", sampleHistoryDuration);
-		gsrSampleRate = pt.get_or<int>("gsr_sample_rate", gsrSampleRate);
+		edaSampleRate = pt.get_or<int>("eda_sample_rate", edaSampleRate);
 	}
 	else
 	{
@@ -62,32 +62,32 @@ int AdafruitSensorConfig::sanitizeSampleRate(int test_sample_rate, const int* sa
 }
 
 void AdafruitSensorConfig::getAvailableCapabilitySampleRates(
-	HSLSensorDataStreamFlags flag,
+	HSLSensorCapabilityType cap_type,
 	const int** out_rates,
 	int* out_rate_count) const
 {
 	assert(out_rates);
 	assert(out_rate_count);
 
-	switch (flag)
+	switch (cap_type)
 	{
-	case HSLStreamFlags_GSRData:
-		*out_rates = k_available_gsr_sample_rates;
-		*out_rate_count = ARRAY_SIZE(k_available_gsr_sample_rates);
+	case HSLCapability_ElectrodermalActivity:
+		*out_rates = k_available_eda_sample_rates;
+		*out_rate_count = ARRAY_SIZE(k_available_eda_sample_rates);
 		break;
 	}
 }
 
-bool AdafruitSensorConfig::setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate)
+bool AdafruitSensorConfig::setCapabilitySampleRate(HSLSensorCapabilityType cap_type, int sample_rate)
 {
 	int new_config_value = 0;
 	int* config_value_ptr = nullptr;
 
-	switch (flag)
+	switch (cap_type)
 	{
-	case HSLStreamFlags_GSRData:
-		config_value_ptr = &gsrSampleRate;
-		new_config_value = sanitizeSampleRate(sample_rate, k_available_gsr_sample_rates);
+	case HSLCapability_ElectrodermalActivity:
+		config_value_ptr = &edaSampleRate;
+		new_config_value = sanitizeSampleRate(sample_rate, k_available_eda_sample_rates);
 		break;
 	}
 

@@ -91,7 +91,7 @@ bool ServiceRequestHandler::getSensorList(HSLSensorList *out_sensor_list) const
 
 bool ServiceRequestHandler::setActiveSensorDataStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_flags)
+	t_hsl_caps_bitmask data_stream_flags)
 {
     ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
 
@@ -103,7 +103,7 @@ bool ServiceRequestHandler::setActiveSensorDataStreams(
 	return false;
 }
 
-t_hsl_stream_bitmask ServiceRequestHandler::getActiveSensorDataStreams(HSLSensorID sensor_id) const
+t_hsl_caps_bitmask ServiceRequestHandler::getActiveSensorDataStreams(HSLSensorID sensor_id) const
 {
 	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
 
@@ -146,6 +146,36 @@ t_hrv_filter_bitmask ServiceRequestHandler::getActiveSensorFilterStreams(HSLSens
 bool ServiceRequestHandler::stopAllActiveSensorStreams(HSLSensorID sensor_id)
 {
 	return setActiveSensorDataStreams(sensor_id, 0) && setActiveSensorFilterStreams(sensor_id, 0);
+}
+
+bool ServiceRequestHandler::getCapabilitySamplingRate(
+	HSLSensorID sensor_id,
+	HSLSensorCapabilityType cap_type,
+	int& out_sampling_rate)
+{
+	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
+
+	if (sensor_view && sensor_view->getIsOpen())
+	{
+		return sensor_view->getCapabilitySamplingRate(cap_type, out_sampling_rate);
+	}
+
+	return false;
+}
+
+bool ServiceRequestHandler::getCapabilityBitResolution(
+	HSLSensorID sensor_id,
+	HSLSensorCapabilityType cap_type,
+	int& out_resolution)
+{
+	ServerSensorViewPtr sensor_view = m_deviceManager->getSensorViewPtr(sensor_id);
+
+	if (sensor_view && sensor_view->getIsOpen())
+	{
+		return sensor_view->getCapabilityBitResolution(cap_type, out_resolution);
+	}
+
+	return false;
 }
 
 bool ServiceRequestHandler::getServiceVersion(

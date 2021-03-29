@@ -24,10 +24,10 @@ extern const BluetoothUUID *k_Descriptor_HeartRateMeasurement_UUID;
 extern const BluetoothUUID *k_Characteristic_BodySensorLocation_UUID;
 extern const BluetoothUUID *k_Characteristic_HeartRateControlPoint_UUID;
 
-extern const BluetoothUUID *k_Service_GSR_UUID;
-extern const BluetoothUUID *k_Characteristic_GSR_Measurement_UUID;
-extern const BluetoothUUID *k_Descriptor_GSR_Measurement_UUID;
-extern const BluetoothUUID *k_Characteristic_GSR_Period_UUID;
+extern const BluetoothUUID *k_Service_EDA_UUID;
+extern const BluetoothUUID *k_Characteristic_EDA_Measurement_UUID;
+extern const BluetoothUUID *k_Descriptor_EDA_Measurement_UUID;
+extern const BluetoothUUID *k_Characteristic_EDA_Period_UUID;
 
 #endif // BLUETOOTH_LE_SERVICE_IDS_H
 

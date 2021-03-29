@@ -16,10 +16,10 @@ public:
 	void stop();
 
 	void setConfig(const PolarSensorConfig& config);
-	void setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags);
-	t_hsl_stream_bitmask getActiveSensorDataStreams() const;
+	void setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags);
+	t_hsl_caps_bitmask getActiveSensorDataStreams() const;
 
-	bool getStreamCapabilities(t_hsl_stream_bitmask& outStreamCapabilitiesBitmask);
+	bool getStreamCapabilities(t_hsl_caps_bitmask& outStreamCapabilitiesBitmask);
 
 protected:
 
@@ -60,10 +60,10 @@ protected:
 	t_bluetoothle_device_handle m_deviceHandle;
 	ISensorListener* m_sensorListener;
 	PolarSensorConfig m_config;
-	t_hsl_stream_bitmask m_streamCapabilitiesBitmask;
-	t_hsl_stream_bitmask m_streamListenerBitmask;
+	t_hsl_caps_bitmask m_streamCapabilitiesBitmask;
+	t_hsl_caps_bitmask m_streamListenerBitmask;
 	bool m_bIsRunning;
-	t_hsl_stream_bitmask m_streamActiveBitmask;
+	t_hsl_caps_bitmask m_streamActiveBitmask;
 	uint64_t m_accStreamStartTimestamp;
 	uint64_t m_ecgStreamStartTimestamp;
 	uint64_t m_ppgStreamStartTimestamp;

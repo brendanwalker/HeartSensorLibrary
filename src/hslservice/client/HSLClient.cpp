@@ -93,7 +93,7 @@ struct HSLClentSensorState
 	HSLClientBufferState<HSLHeartPPGFrame> heartPPGBuffer;
 	HSLClientBufferState<HSLHeartPPIFrame> heartPPIBuffer;
 	HSLClientBufferState<HSLAccelerometerFrame> heartAccBuffer;
-	HSLClientBufferState<HSLGalvanicSkinResponseFrame> gsrBuffer;
+	HSLClientBufferState<HSLElectrodermalActivityFrame> skinEDABuffer;
 
 	std::array<HSLClentFilterState, HRVFilter_COUNT> hrvFilters;
 
@@ -108,7 +108,7 @@ struct HSLClentSensorState
 		heartPPGBuffer.clearSensorData();
 		heartPPIBuffer.clearSensorData();
 		heartAccBuffer.clearSensorData();
-		gsrBuffer.clearSensorData();
+		skinEDABuffer.clearSensorData();
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
@@ -246,7 +246,7 @@ bool HSLClient::initClientSensorState(HSLSensorID sensor_id)
 		clientSensorState.heartPPGBuffer.init(HSLBufferType_PPGData, sensor_view->getHeartPPGBuffer()->getCapacity());
 		clientSensorState.heartPPIBuffer.init(HSLBufferType_PPIData, sensor_view->getHeartPPIBuffer()->getCapacity());
 		clientSensorState.heartRateBuffer.init(HSLBufferType_HRData, sensor_view->getHeartRateBuffer()->getCapacity());
-		clientSensorState.gsrBuffer.init(HSLBufferType_GSRData, sensor_view->getGalvanicSkinResponseBuffer()->getCapacity());
+		clientSensorState.skinEDABuffer.init(HSLBufferType_EDAData, sensor_view->getSkinEDABuffer()->getCapacity());
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
@@ -275,7 +275,7 @@ void HSLClient::disposeClientSensorState(HSLSensorID sensor_id)
 		clientSensorState.heartPPGBuffer.dispose();
 		clientSensorState.heartPPIBuffer.dispose();
 		clientSensorState.heartRateBuffer.dispose();
-		clientSensorState.gsrBuffer.dispose();
+		clientSensorState.skinEDABuffer.dispose();
 
 		for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 		{
@@ -312,7 +312,7 @@ void HSLClient::updateClientSensorState(HSLSensorID sensor_id, bool updateDevice
 			clientSensorState.heartPPGBuffer.copyLatestValues(*sensor_view->getHeartPPGBuffer());
 			clientSensorState.heartPPIBuffer.copyLatestValues(*sensor_view->getHeartPPIBuffer());
 			clientSensorState.heartRateBuffer.copyLatestValues(*sensor_view->getHeartRateBuffer());
-			clientSensorState.gsrBuffer.copyLatestValues(*sensor_view->getGalvanicSkinResponseBuffer());
+			clientSensorState.skinEDABuffer.copyLatestValues(*sensor_view->getSkinEDABuffer());
 			for (int filter_index = 0; filter_index < HRVFilter_COUNT; ++filter_index)
 			{
 				HSLHeartRateVariabityFilterType filter = HSLHeartRateVariabityFilterType(filter_index);
@@ -366,82 +366,40 @@ void init_buffer_iterator(
 	}
 }
 
-HSLBufferIterator HSLClient::getHeartRateBuffer(HSLSensorID sensor_id)
+HSLBufferIterator HSLClient::getCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type)
 {
 	HSLBufferIterator iter;
 	HSL_BufferIteratorReset(&iter);
 
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		CircularBuffer<HSLHeartRateFrame> *heartRateBuffer = m_clientSensors[sensor_id].heartRateBuffer.buffer;
-
-		init_buffer_iterator(HSLBufferType_HRData, heartRateBuffer, &iter);
+		switch (cap_type)
+		{
+		case HSLCapability_HeartRate:
+			init_buffer_iterator(HSLBufferType_HRData, m_clientSensors[sensor_id].heartRateBuffer.buffer, &iter);
+			break;
+		case HSLCapability_Electrocardiography:
+			init_buffer_iterator(HSLBufferType_ECGData, m_clientSensors[sensor_id].heartECGBuffer.buffer, &iter);
+			break;
+		case HSLCapability_Photoplethysmography:
+			init_buffer_iterator(HSLBufferType_PPGData, m_clientSensors[sensor_id].heartPPGBuffer.buffer, &iter);
+			break;
+		case HSLCapability_PulseInterval:
+			init_buffer_iterator(HSLBufferType_PPIData, m_clientSensors[sensor_id].heartPPIBuffer.buffer, &iter);
+			break;
+		case HSLCapability_Accelerometer:
+			init_buffer_iterator(HSLBufferType_AccData, m_clientSensors[sensor_id].heartAccBuffer.buffer, &iter);
+			break;
+		case HSLCapability_ElectrodermalActivity:
+			init_buffer_iterator(HSLBufferType_EDAData, m_clientSensors[sensor_id].skinEDABuffer.buffer, &iter);
+			break;
+		}
 	}
 
 	return iter;
 }
 
-HSLBufferIterator HSLClient::getHeartECGBuffer(HSLSensorID sensor_id)
-{
-	HSLBufferIterator iter;
-	HSL_BufferIteratorReset(&iter);
-
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		CircularBuffer<HSLHeartECGFrame> *heartECGBuffer = m_clientSensors[sensor_id].heartECGBuffer.buffer;
-		
-		init_buffer_iterator(HSLBufferType_ECGData, heartECGBuffer, &iter);
-	}
-
-	return iter;
-}
-
-HSLBufferIterator HSLClient::getHeartPPGBuffer(HSLSensorID sensor_id)
-{
-	HSLBufferIterator iter;
-	HSL_BufferIteratorReset(&iter);
-
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		CircularBuffer<HSLHeartPPGFrame> *heartPPGBuffer = m_clientSensors[sensor_id].heartPPGBuffer.buffer;
-
-		init_buffer_iterator(HSLBufferType_PPGData, heartPPGBuffer, &iter);
-	}
-
-	return iter;
-}
-
-HSLBufferIterator HSLClient::getHeartPPIBuffer(HSLSensorID sensor_id)
-{
-	HSLBufferIterator iter;
-	HSL_BufferIteratorReset(&iter);
-
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		CircularBuffer<HSLHeartPPIFrame> *heartPPIBuffer = m_clientSensors[sensor_id].heartPPIBuffer.buffer;
-
-		init_buffer_iterator(HSLBufferType_PPIData, heartPPIBuffer, &iter);
-	}
-
-	return iter;
-}
-
-HSLBufferIterator HSLClient::getHeartAccBuffer(HSLSensorID sensor_id)
-{
-	HSLBufferIterator iter;
-	HSL_BufferIteratorReset(&iter);
-
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		CircularBuffer<HSLAccelerometerFrame> *heartAccBuffer = m_clientSensors[sensor_id].heartAccBuffer.buffer;
-
-		init_buffer_iterator(HSLBufferType_AccData, heartAccBuffer, &iter);
-	}
-
-	return iter;
-}
-
-HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter)
+HSLBufferIterator HSLClient::getHeartRateVariabilityBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterType filter)
 {
 	HSLBufferIterator iter;
 	HSL_BufferIteratorReset(&iter);
@@ -456,71 +414,31 @@ HSLBufferIterator HSLClient::getHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRa
 	return iter;
 }
 
-HSLBufferIterator HSLClient::getGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
-{
-	HSLBufferIterator iter;
-	HSL_BufferIteratorReset(&iter);
-
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		CircularBuffer<HSLGalvanicSkinResponseFrame>* gsrBuffer = m_clientSensors[sensor_id].gsrBuffer.buffer;
-
-		init_buffer_iterator(HSLBufferType_GSRData, gsrBuffer, &iter);
-	}
-
-	return iter;
-}
-
-bool HSLClient::flushHeartRateBuffer(HSLSensorID sensor_id)
+bool HSLClient::flushCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type)
 {
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
-		m_clientSensors[sensor_id].heartRateBuffer.clearSensorData();
-		return true;
-	}
-
-	return false;
-}
-
-bool HSLClient::flushHeartECGBuffer(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		m_clientSensors[sensor_id].heartECGBuffer.clearSensorData();
-		return true;
-	}
-
-	return false;
-}
-
-bool HSLClient::flushHeartPPGBuffer(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		m_clientSensors[sensor_id].heartPPGBuffer.clearSensorData();
-		return true;
-	}
-
-	return false;
-}
-
-bool HSLClient::flushHeartPPIBuffer(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		m_clientSensors[sensor_id].heartPPIBuffer.clearSensorData();
-		return true;
-	}
-
-	return false;
-}
-
-bool HSLClient::flushHeartAccBuffer(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		m_clientSensors[sensor_id].heartAccBuffer.clearSensorData();
-		return true;
+		switch (cap_type)
+		{
+		case HSLCapability_HeartRate:
+			m_clientSensors[sensor_id].heartRateBuffer.clearSensorData();
+			return true;
+		case HSLCapability_Electrocardiography:
+			m_clientSensors[sensor_id].heartECGBuffer.clearSensorData();
+			return true;
+		case HSLCapability_Photoplethysmography:
+			m_clientSensors[sensor_id].heartPPGBuffer.clearSensorData();
+			return true;
+		case HSLCapability_PulseInterval:
+			m_clientSensors[sensor_id].heartPPIBuffer.clearSensorData();
+			return true;
+		case HSLCapability_Accelerometer:
+			m_clientSensors[sensor_id].heartAccBuffer.clearSensorData();
+			return true;
+		case HSLCapability_ElectrodermalActivity:
+			m_clientSensors[sensor_id].skinEDABuffer.clearSensorData();
+			return true;
+		}
 	}
 
 	return false;
@@ -531,17 +449,6 @@ bool HSLClient::flushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabity
 	if (IS_VALID_SENSOR_INDEX(sensor_id))
 	{
 		m_clientSensors[sensor_id].hrvFilters[filter].clearSensorData();
-		return true;
-	}
-
-	return false;
-}
-
-bool HSLClient::flushGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
-{
-	if (IS_VALID_SENSOR_INDEX(sensor_id))
-	{
-		m_clientSensors[sensor_id].gsrBuffer.clearSensorData();
 		return true;
 	}
 

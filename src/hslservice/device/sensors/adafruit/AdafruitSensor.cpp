@@ -236,7 +236,7 @@ void AdafruitSensor::close()
 	}
 }
 
-bool AdafruitSensor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream_flags)
+bool AdafruitSensor::setActiveSensorDataStreams(t_hsl_caps_bitmask data_stream_flags)
 {
 	if (m_packetProcessor != nullptr)
 	{
@@ -247,7 +247,7 @@ bool AdafruitSensor::setActiveSensorDataStreams(t_hsl_stream_bitmask data_stream
 	return false;
 }
 
-t_hsl_stream_bitmask AdafruitSensor::getActiveSensorDataStreams() const
+t_hsl_caps_bitmask AdafruitSensor::getActiveSensorDataStreams() const
 {
 	if (m_packetProcessor != nullptr)
 	{
@@ -286,9 +286,9 @@ const std::string AdafruitSensor::getDevicePath() const
 	return m_bluetoothLEDetails.deviceInfo.devicePath;
 }
 
-t_hsl_stream_bitmask AdafruitSensor::getSensorCapabilities() const
+t_hsl_caps_bitmask AdafruitSensor::getSensorCapabilities() const
 {
-	t_hsl_stream_bitmask bitmask = 0;
+	t_hsl_caps_bitmask bitmask = 0;
 
 	m_packetProcessor->getStreamCapabilities(bitmask);
 
@@ -306,29 +306,37 @@ bool AdafruitSensor::getDeviceInformation(HSLDeviceInformation* out_device_info)
 	return false;
 }
 
-int AdafruitSensor::getCapabilitySampleRate(HSLSensorDataStreamFlags flag) const
+bool AdafruitSensor::getCapabilitySamplingRate(HSLSensorCapabilityType cap_type, int& out_sampling_rate) const
 {
-	int sample_rate = 0;
-
-	switch (flag)
+	if (cap_type == HSLCapability_ElectrodermalActivity)
 	{
-	case HSLStreamFlags_GSRData:
-		sample_rate = m_config.gsrSampleRate;
-		break;
+		out_sampling_rate = m_config.edaSampleRate;
+		return true;
 	}
 
-	return sample_rate;
+	return false;
+}
+
+bool AdafruitSensor::getCapabilityBitResolution(HSLSensorCapabilityType cap_type, int& out_resolution) const
+{
+	if (cap_type == HSLCapability_ElectrodermalActivity)
+	{
+		out_resolution= 10; // Always a 10-bit sampling resolution
+		return true;
+	}
+
+	return false;
 }
 
 void AdafruitSensor::getAvailableCapabilitySampleRates(
-	HSLSensorDataStreamFlags flag,
+	HSLSensorCapabilityType flag,
 	const int** out_rates,
 	int* out_rate_count) const
 {
 	m_config.getAvailableCapabilitySampleRates(flag, out_rates, out_rate_count);
 }
 
-void AdafruitSensor::setCapabilitySampleRate(HSLSensorDataStreamFlags flag, int sample_rate)
+void AdafruitSensor::setCapabilitySampleRate(HSLSensorCapabilityType flag, int sample_rate)
 {
 	if (m_config.setCapabilitySampleRate(flag, sample_rate))
 	{

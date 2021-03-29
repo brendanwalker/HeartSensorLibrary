@@ -182,42 +182,10 @@ static HSLBufferIterator CreateInvalidIterator()
 	return iter;
 }
 
-HSLBufferIterator HSL_GetHeartRateBuffer(HSLSensorID sensor_id)
+HSLBufferIterator HSL_GetCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartRateBuffer(sensor_id);
-	else
-		return CreateInvalidIterator();
-}
-
-HSLBufferIterator HSL_GetHeartECGBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartECGBuffer(sensor_id);
-	else
-		return CreateInvalidIterator();
-}
-
-HSLBufferIterator HSL_GetHeartPPGBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartPPGBuffer(sensor_id);
-	else
-		return CreateInvalidIterator();
-}
-
-HSLBufferIterator HSL_GetHeartPPIBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartPPIBuffer(sensor_id);
-	else
-		return CreateInvalidIterator();
-}
-
-HSLBufferIterator HSL_GetHeartAccBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartAccBuffer(sensor_id);
+		return g_HSL_client->getCapabilityBuffer(sensor_id, cap_type);
 	else
 		return CreateInvalidIterator();
 }
@@ -227,55 +195,15 @@ HSLBufferIterator HSL_GetHeartHrvBuffer(
 	HSLHeartRateVariabityFilterType filter)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getHeartHrvBuffer(sensor_id, filter);
+		return g_HSL_client->getHeartRateVariabilityBuffer(sensor_id, filter);
 	else
 		return CreateInvalidIterator();
 }
 
-HSLBufferIterator HSL_GetGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
+bool HSL_FlushCapabilityBuffer(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type)
 {
 	if (g_HSL_client != nullptr)
-		return g_HSL_client->getGalvanicSkinResponseBuffer(sensor_id);
-	else
-		return CreateInvalidIterator();
-}
-
-bool HSL_FlushHeartRateBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushHeartRateBuffer(sensor_id);
-	else
-		return false;
-}
-
-bool HSL_FlushHeartECGBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushHeartECGBuffer(sensor_id);
-	else
-		return false;
-}
-
-bool HSL_FlushHeartPPGBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushHeartPPGBuffer(sensor_id);
-	else
-		return false;
-}
-
-bool HSL_FlushHeartPPIBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushHeartPPIBuffer(sensor_id);
-	else
-		return false;
-}
-
-bool HSL_FlushHeartAccBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushHeartAccBuffer(sensor_id);
+		return g_HSL_client->flushCapabilityBuffer(sensor_id, cap_type);
 	else
 		return false;
 }
@@ -284,14 +212,6 @@ bool HSL_FlushHeartHrvBuffer(HSLSensorID sensor_id, HSLHeartRateVariabityFilterT
 {
 	if (g_HSL_client != nullptr)
 		return g_HSL_client->flushHeartHrvBuffer(sensor_id, filter);
-	else
-		return false;
-}
-
-bool HSL_FlushGalvanicSkinResponseBuffer(HSLSensorID sensor_id)
-{
-	if (g_HSL_client != nullptr)
-		return g_HSL_client->flushGalvanicSkinResponseBuffer(sensor_id);
 	else
 		return false;
 }
@@ -381,12 +301,36 @@ HSLHeartVariabilityFrame* HSL_BufferIteratorGetHRVData(HSLBufferIterator* iterat
         : nullptr;
 }
 
-HSLGalvanicSkinResponseFrame* HSL_BufferIteratorGetGSRData(HSLBufferIterator* iterator)
+HSLElectrodermalActivityFrame* HSL_BufferIteratorGetEDAData(HSLBufferIterator* iterator)
 {
 	return
-		(iterator->bufferType == HSLBufferType_GSRData)
-		? (HSLGalvanicSkinResponseFrame*)HSL_BufferIteratorGetValueRaw(iterator)
+		(iterator->bufferType == HSLBufferType_EDAData)
+		? (HSLElectrodermalActivityFrame*)HSL_BufferIteratorGetValueRaw(iterator)
 		: nullptr;
+}
+
+bool HSL_GetCapabilitySamplingRate(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type, int* out_sampling_rate)
+{
+	bool result = false;
+
+	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id) && out_sampling_rate != nullptr)
+	{
+		result = g_HSL_service->getRequestHandler()->getCapabilitySamplingRate(sensor_id, cap_type, *out_sampling_rate);
+	}
+
+	return result;
+}
+
+bool HSL_GetCapabilityBitResolution(HSLSensorID sensor_id, HSLSensorCapabilityType cap_type, int* out_resolution)
+{
+	bool result = false;
+
+	if (g_HSL_service != nullptr && IS_VALID_SENSOR_INDEX(sensor_id) && out_resolution != nullptr)
+	{
+		result = g_HSL_service->getRequestHandler()->getCapabilityBitResolution(sensor_id, cap_type, *out_resolution);
+	}
+
+	return result;
 }
 
 /// Sensor Requests
@@ -402,9 +346,9 @@ bool HSL_GetSensorList(HSLSensorList *out_sensor_list)
 	return result;
 }
 
-bool HSL_SetActiveSensorDataStreams(
+bool HSL_SetActiveSensorCapabilityStreams(
 	HSLSensorID sensor_id, 
-	t_hsl_stream_bitmask data_stream_flags)
+	t_hsl_caps_bitmask data_stream_flags)
 {
 	bool result= false;
 
@@ -418,7 +362,7 @@ bool HSL_SetActiveSensorDataStreams(
 			assert(client_sensor != nullptr);
 
 			// Update the set of active data streams on the client sensor state
-			client_sensor->activeDataStreams= g_HSL_service->getRequestHandler()->getActiveSensorDataStreams(sensor_id);
+			client_sensor->activeSensorStreams= g_HSL_service->getRequestHandler()->getActiveSensorDataStreams(sensor_id);
 		}
 	}
 
